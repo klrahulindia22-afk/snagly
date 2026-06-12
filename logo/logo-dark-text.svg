@@ -1,0 +1,11 @@
+<svg width="420" height="120" viewBox="0 0 420 120" xmlns="http://www.w3.org/2000/svg">
+  <!-- icon -->
+  <g transform="translate(8,8)">
+    <rect width="104" height="104" rx="26" fill="#ffffff"/>
+    <path d="M52 24 C72 24 80 35 80 52 C80 72 67.6 83 52 83 C36.4 83 24 72 24 52 C24 35 32 24 52 24 Z" fill="#0f9e8e"/>
+    <path d="M40.4 31.6 q11.6 -8 23.2 0 q-4.8 5.2 -11.6 5.2 q-6.8 0 -11.6 -5.2 z" fill="#052f2a"/>
+    <path d="M37.2 54 l10.8 11.2 l18.4 -21.6" stroke="#ffffff" stroke-width="6.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <!-- wordmark -->
+  <text x="132" y="78" font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-size="58" font-weight="700" fill="#0a4a42" letter-spacing="-1">Snagly</text>
+</svg>
