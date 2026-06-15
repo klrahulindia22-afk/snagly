@@ -1,8 +1,31 @@
 import secrets
 import string
 import json
+import random
 import bcrypt
 import pyotp
+
+_AVATAR_COLORS = [
+    "#2563eb",  # blue
+    "#0d9488",  # teal
+    "#dc2626",  # red
+    "#1e40af",  # dark blue
+    "#16a34a",  # green
+    "#7c3aed",  # purple
+    "#c2410c",  # orange-red
+    "#0891b2",  # cyan
+    "#b45309",  # amber
+    "#be185d",  # pink
+    "#4f46e5",  # indigo
+    "#059669",  # emerald
+    "#9333ea",  # violet
+    "#0f766e",  # dark teal
+    "#b91c1c",  # dark red
+]
+
+
+def random_avatar_color() -> str:
+    return random.choice(_AVATAR_COLORS)
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
 from config import settings
@@ -18,13 +41,21 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def create_access_token(data: dict) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.JWT_ACCESS_EXPIRE_MINUTES)
-    return jwt.encode({**data, "exp": expire, "type": "access"}, settings.APP_SECRET_KEY, algorithm="HS256")
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(minutes=settings.JWT_ACCESS_EXPIRE_MINUTES)
+    return jwt.encode(
+        {**data, "exp": expire, "type": "access", "iat": int(now.timestamp())},
+        settings.APP_SECRET_KEY, algorithm="HS256",
+    )
 
 
 def create_refresh_token(data: dict) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(days=settings.JWT_REFRESH_EXPIRE_DAYS)
-    return jwt.encode({**data, "exp": expire, "type": "refresh"}, settings.APP_SECRET_KEY, algorithm="HS256")
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(days=settings.JWT_REFRESH_EXPIRE_DAYS)
+    return jwt.encode(
+        {**data, "exp": expire, "type": "refresh", "iat": int(now.timestamp())},
+        settings.APP_SECRET_KEY, algorithm="HS256",
+    )
 
 
 def decode_token(token: str) -> dict:
@@ -35,10 +66,15 @@ def generate_reset_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+def generate_refresh_jti() -> str:
+    """Unique ID for single-use refresh token enforcement."""
+    return secrets.token_hex(16)
+
+
 # ── OTP ────────────────────────────────────────────────────────────────────────
 
 def generate_otp() -> str:
-    """Return a 6-digit numeric OTP."""
+    """Return a cryptographically random 6-digit OTP. When SMTP is not configured, email_service logs it to console."""
     return "".join(secrets.choice(string.digits) for _ in range(6))
 
 
@@ -66,8 +102,11 @@ def totp_provisioning_uri(secret: str, email: str) -> str:
 
 
 def verify_totp(secret: str, code: str) -> bool:
-    totp = pyotp.TOTP(secret)
-    return totp.verify(code, valid_window=1)
+    try:
+        totp = pyotp.TOTP(secret)
+        return totp.verify(code, valid_window=1)
+    except Exception:
+        return False
 
 
 def encrypt_totp_secret(secret: str) -> str:

@@ -10,11 +10,13 @@ class Board(Base):
 
     id = Column(BIGINT(unsigned=True), primary_key=True, autoincrement=True)
     name = Column(String(255), nullable=False)
+    slug = Column(String(255), unique=True, nullable=True, index=True)
     description = Column(String(1000), nullable=True)
     owner_id = Column(BIGINT(unsigned=True), ForeignKey("users.id"), nullable=False, index=True)
     member_limit = Column(Integer, nullable=False, default=10)
-    bg_color = Column(String(7), nullable=True, default="#1a1f2e")
+    bg_color = Column(String(500), nullable=True, default="#1a1f2e")
     is_archived = Column(Boolean, nullable=False, default=False)
+    archived_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
 

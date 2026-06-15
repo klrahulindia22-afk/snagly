@@ -7,27 +7,21 @@ import {
 } from "../../api/lists";
 
 const AUTOMATION_RULE_TYPES = [
-  {
-    type: "wip_limit_notify",
-    label: "Notify when WIP limit reached",
-    description: "Send a notification when this list reaches its card limit",
-  },
-  {
-    type: "auto_archive_on_move",
-    label: "Archive card when moved away",
-    description: "Automatically archive cards when they leave this list",
-  },
-  {
-    type: "auto_assign_on_move",
-    label: "Keep assignee when moved here",
-    description: "Preserve card assignees when cards are moved to this list",
-  },
-  {
-    type: "notify_on_new_card",
-    label: "Notify members on new card",
-    description: "Alert all board members when a card is added to this list",
-  },
+  { type: "wip_limit_notify",    label: "Notify when WIP limit reached",  description: "Send a notification when this list reaches its card limit" },
+  { type: "auto_archive_on_move", label: "Archive card when moved away",   description: "Automatically archive cards when they leave this list" },
+  { type: "auto_assign_on_move",  label: "Keep assignee when moved here",  description: "Preserve card assignees when cards are moved to this list" },
+  { type: "notify_on_new_card",   label: "Notify members on new card",     description: "Alert all board members when a card is added to this list" },
 ];
+
+const sectionStyle = {
+  padding:12, background:"var(--input-bg)", borderRadius:6, marginBottom:4,
+};
+
+const inputStyle = {
+  width:"100%", background:"var(--input-bg-focus)", border:"1px solid var(--border)",
+  borderRadius:4, padding:"6px 10px", color:"var(--text-primary)", fontSize:13,
+  outline:"none", boxSizing:"border-box", fontFamily:"inherit",
+};
 
 function RenameSection({ list, boardId, onUpdated, onClose }) {
   const [name, setName] = useState(list.name);
@@ -46,26 +40,26 @@ function RenameSection({ list, boardId, onUpdated, onClose }) {
   };
 
   return (
-    <div className="p-3 bg-white/5 rounded-lg space-y-2">
-      <p className="text-white/60 text-xs">Rename list</p>
+    <div style={sectionStyle} className="space-y-2">
+      <p style={{ fontSize:12, color:"var(--text-secondary)" }}>Rename list</p>
       <input
         autoFocus
         value={name}
         onChange={(e) => setName(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") onClose(); }}
-        className="w-full bg-white/10 border border-white/20 rounded px-2 py-1.5 text-white text-sm focus:outline-none focus:border-[#0f9e8e]"
+        style={inputStyle}
+        onFocus={(e) => { e.target.style.borderColor = "#6c63ff"; }}
+        onBlur={(e) => { e.target.style.borderColor = "var(--border)"; }}
       />
-      <div className="flex gap-2">
-        <button
-          onClick={save}
-          disabled={saving}
-          className="px-3 py-1 bg-[#0f9e8e] text-white rounded text-xs hover:bg-[#0b8b7f] disabled:opacity-50"
-        >
-          Save
-        </button>
-        <button onClick={onClose} className="px-3 py-1 text-white/50 hover:text-white text-xs">
-          Cancel
-        </button>
+      <div style={{ display:"flex", gap:8 }}>
+        <button onClick={save} disabled={saving} style={{ padding:"4px 12px", background:"#6c63ff", color:"#fff", borderRadius:4, border:"none", fontSize:12, cursor:"pointer", fontFamily:"inherit", opacity:saving?0.5:1 }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "#5b52e0"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "#6c63ff"; }}
+        >Save</button>
+        <button onClick={onClose} style={{ padding:"4px 10px", background:"none", border:"none", color:"var(--text-secondary)", fontSize:12, cursor:"pointer", fontFamily:"inherit" }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-primary)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-secondary)"; }}
+        >Cancel</button>
       </div>
     </div>
   );
@@ -88,34 +82,34 @@ function WipSection({ list, boardId, onUpdated, onClose }) {
   };
 
   return (
-    <div className="p-3 bg-white/5 rounded-lg space-y-2">
-      <p className="text-white/60 text-xs">WIP limit (leave blank to disable)</p>
+    <div style={sectionStyle} className="space-y-2">
+      <p style={{ fontSize:12, color:"var(--text-secondary)" }}>WIP limit (blank = disabled)</p>
       <input
         type="number"
         min="1"
         value={limit}
         onChange={(e) => setLimit(e.target.value)}
         placeholder="e.g. 5"
-        className="w-full bg-white/10 border border-white/20 rounded px-2 py-1.5 text-white text-sm focus:outline-none focus:border-[#0f9e8e]"
+        style={inputStyle}
+        onFocus={(e) => { e.target.style.borderColor = "#6c63ff"; }}
+        onBlur={(e) => { e.target.style.borderColor = "var(--border)"; }}
       />
-      <div className="flex gap-2">
-        <button
-          onClick={save}
-          disabled={saving}
-          className="px-3 py-1 bg-[#0f9e8e] text-white rounded text-xs hover:bg-[#0b8b7f] disabled:opacity-50"
-        >
-          Save
-        </button>
-        <button onClick={onClose} className="px-3 py-1 text-white/50 hover:text-white text-xs">
-          Cancel
-        </button>
+      <div style={{ display:"flex", gap:8 }}>
+        <button onClick={save} disabled={saving} style={{ padding:"4px 12px", background:"#6c63ff", color:"#fff", borderRadius:4, border:"none", fontSize:12, cursor:"pointer", fontFamily:"inherit", opacity:saving?0.5:1 }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "#5b52e0"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "#6c63ff"; }}
+        >Save</button>
+        <button onClick={onClose} style={{ padding:"4px 10px", background:"none", border:"none", color:"var(--text-secondary)", fontSize:12, cursor:"pointer", fontFamily:"inherit" }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-primary)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-secondary)"; }}
+        >Cancel</button>
       </div>
     </div>
   );
 }
 
 function ColorSection({ list, boardId, onUpdated, onClose }) {
-  const colors = ["#0f9e8e","#0079bf","#de350b","#ff991f","#61bd4f","#00c2e0","#c377e0","#8993a4","#f2d600",null];
+  const colors = ["#6c63ff","#0079bf","#de350b","#ff991f","#61bd4f","#00c2e0","#c377e0","#8993a4","#f2d600",null];
   const [selected, setSelected] = useState(list.color);
   const [saving, setSaving] = useState(false);
 
@@ -131,37 +125,37 @@ function ColorSection({ list, boardId, onUpdated, onClose }) {
   };
 
   return (
-    <div className="p-3 bg-white/5 rounded-lg space-y-2">
-      <p className="text-white/60 text-xs">List colour</p>
-      <div className="flex flex-wrap gap-2">
+    <div style={sectionStyle} className="space-y-2">
+      <p style={{ fontSize:12, color:"var(--text-secondary)" }}>List colour</p>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
         {colors.map((c, i) => (
           <button
             key={i}
             onClick={() => setSelected(c)}
             title={c || "None"}
-            className="w-7 h-7 rounded-full border-2 transition-all"
             style={{
+              width:24, height:24, borderRadius:"50%", border:"none", cursor:"pointer",
               backgroundColor: c || "transparent",
-              borderColor: selected === c ? "white" : c ? "transparent" : "rgba(255,255,255,0.3)",
-              boxShadow: !c ? "inset 0 0 0 1px rgba(255,255,255,0.2)" : "none",
+              boxShadow: selected === c
+                ? `0 0 0 2px var(--modal-bg), 0 0 0 4px ${c || "var(--text-primary)"}`
+                : !c ? "inset 0 0 0 1px var(--border)" : "none",
+              transform: selected === c ? "scale(1.15)" : "scale(1)",
+              transition:"transform .1s, box-shadow .1s",
             }}
-            aria-label={c ? `Set colour ${c}` : "Remove colour"}
           >
-            {!c && <span className="text-white/40 text-xs">✕</span>}
+            {!c && <span style={{ fontSize:10, color:"var(--text-muted)" }}>✕</span>}
           </button>
         ))}
       </div>
-      <div className="flex gap-2">
-        <button
-          onClick={save}
-          disabled={saving}
-          className="px-3 py-1 bg-[#0f9e8e] text-white rounded text-xs hover:bg-[#0b8b7f] disabled:opacity-50"
-        >
-          Save
-        </button>
-        <button onClick={onClose} className="px-3 py-1 text-white/50 hover:text-white text-xs">
-          Cancel
-        </button>
+      <div style={{ display:"flex", gap:8 }}>
+        <button onClick={save} disabled={saving} style={{ padding:"4px 12px", background:"#6c63ff", color:"#fff", borderRadius:4, border:"none", fontSize:12, cursor:"pointer", fontFamily:"inherit", opacity:saving?0.5:1 }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "#5b52e0"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "#6c63ff"; }}
+        >Save</button>
+        <button onClick={onClose} style={{ padding:"4px 10px", background:"none", border:"none", color:"var(--text-secondary)", fontSize:12, cursor:"pointer", fontFamily:"inherit" }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-primary)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-secondary)"; }}
+        >Cancel</button>
       </div>
     </div>
   );
@@ -182,7 +176,6 @@ function AutomationSection({ list, boardId, onUpdated }) {
       } else {
         await createAutomationRule(boardId, list.id, { rule_type: type });
       }
-      // Reload list data
       const { getLists } = await import("../../api/lists");
       const res = await getLists(boardId);
       const updated = res.data?.find((l) => l.id === list.id);
@@ -193,29 +186,35 @@ function AutomationSection({ list, boardId, onUpdated }) {
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       {AUTOMATION_RULE_TYPES.map(({ type, label, description }) => {
         const rule = getRule(type);
         const isActive = rule?.is_active ?? false;
         return (
-          <div key={type} className="flex items-start gap-3 p-2 rounded-lg hover:bg-white/5">
+          <div key={type}
+            style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"6px 8px", borderRadius:6 }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--input-bg)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+          >
             <button
               onClick={() => toggle(type)}
               disabled={toggling === type}
-              className={`mt-0.5 w-9 h-5 rounded-full transition-colors shrink-0 relative ${
-                isActive ? "bg-[#0f9e8e]" : "bg-white/20"
-              }`}
+              style={{
+                marginTop:2, width:34, height:18, borderRadius:9, border:"none", cursor:"pointer",
+                background: isActive ? "#6c63ff" : "var(--border)",
+                position:"relative", flexShrink:0, transition:"background .2s",
+              }}
               aria-label={label}
             >
-              <span
-                className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${
-                  isActive ? "left-4" : "left-0.5"
-                }`}
-              />
+              <span style={{
+                position:"absolute", top:2, width:14, height:14, borderRadius:"50%",
+                background:"#fff", transition:"left .2s",
+                left: isActive ? 18 : 2,
+              }} />
             </button>
             <div>
-              <p className="text-white text-xs font-medium">{label}</p>
-              <p className="text-white/40 text-xs">{description}</p>
+              <p style={{ fontSize:12, fontWeight:500, color:"var(--text-primary)", margin:0 }}>{label}</p>
+              <p style={{ fontSize:11, color:"var(--text-muted)", margin:0 }}>{description}</p>
             </div>
           </div>
         );
@@ -224,7 +223,7 @@ function AutomationSection({ list, boardId, onUpdated }) {
   );
 }
 
-export default function ListActionsPanel({ list, boardId, myRole, onUpdated, onArchive, onClose }) {
+export default function ListActionsPanel({ list, boardId, myRole, onUpdated, onArchive, onClose, maxHeight }) {
   const [activeSection, setActiveSection] = useState(null);
   const [archiving, setArchiving] = useState(false);
 
@@ -243,88 +242,90 @@ export default function ListActionsPanel({ list, boardId, myRole, onUpdated, onA
   };
 
   const actions = [
-    { id: "rename", label: "Rename list", icon: "✏️", editorOnly: true },
-    { id: "wip", label: "Set WIP limit", icon: "🔢", editorOnly: true },
-    { id: "color", label: "Change colour", icon: "🎨", editorOnly: true },
-    { id: "sort_name", label: "Sort by name", icon: "🔤", editorOnly: false },
-    { id: "sort_date", label: "Sort by date", icon: "📅", editorOnly: false },
+    { id: "rename",        label: "Rename list",       icon: "✏️", editorOnly: true },
+    { id: "color",         label: "Change colour",     icon: "🎨", editorOnly: true },
+    { id: "sort_name",     label: "Sort by name",      icon: "🔤", editorOnly: false },
+    { id: "sort_date",     label: "Sort by date",      icon: "📅", editorOnly: false },
     { id: "archive_cards", label: "Archive all cards", icon: "📦", editorOnly: true },
-    { id: "move_cards", label: "Move all cards…", icon: "↔️", editorOnly: true },
-    { id: "archive_list", label: "Archive this list", icon: "🗄️", editorOnly: true, danger: true },
+    { id: "move_cards",    label: "Move all cards…",   icon: "↔️", editorOnly: true },
+    { id: "archive_list",  label: "Archive this list", icon: "🗄️", editorOnly: true, danger: true },
   ];
 
+  const bodyMaxH = maxHeight ? Math.max(200, maxHeight - 48) : undefined;
+
   return (
-    <div className="w-64 bg-[#2d3348] rounded-xl shadow-2xl border border-white/10 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-        <p className="text-white text-sm font-medium truncate">{list.name}</p>
+    <div style={{
+      width:256, background:"var(--modal-bg)", border:"1px solid var(--border)",
+      borderRadius:8, boxShadow:"0 8px 32px rgba(0,0,0,.18)",
+      display:"flex", flexDirection:"column",
+      maxHeight: maxHeight ? Math.max(240, maxHeight) : "calc(100vh - 80px)",
+    }}>
+      {/* Header — never scrolls away */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 14px", borderBottom:"1px solid var(--border)", flexShrink:0 }}>
+        <p style={{ fontSize:13, fontWeight:600, color:"var(--text-primary)", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{list.name}</p>
         <button
           onClick={onClose}
-          className="text-white/40 hover:text-white transition-colors text-lg leading-none ml-2"
+          style={{ background:"none", border:"none", color:"var(--text-muted)", cursor:"pointer", fontSize:18, lineHeight:1, marginLeft:8, flexShrink:0 }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-primary)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
           aria-label="Close panel"
-        >
-          ×
-        </button>
+        >×</button>
       </div>
 
-      <div className="p-2 space-y-0.5">
-        {actions.map((action) => {
-          if (action.editorOnly && !canEdit) return null;
-          if (action.id === "archive_list") {
+      {/* Scrollable body */}
+      <div style={{ overflowY:"auto", flex:1, maxHeight: bodyMaxH }}>
+        {/* Action list */}
+        <div style={{ padding:8 }} className="space-y-0.5">
+          {actions.map((action) => {
+            if (action.editorOnly && !canEdit) return null;
+            if (action.id === "archive_list") {
+              return (
+                <button
+                  key={action.id}
+                  onClick={doArchive}
+                  disabled={archiving}
+                  style={{ width:"100%", display:"flex", alignItems:"center", gap:8, padding:"7px 10px", borderRadius:6, border:"none", cursor:"pointer", fontFamily:"inherit", fontSize:13, textAlign:"left", color:"#de350b", background:"none" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(222,53,11,0.08)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+                >
+                  <span>{action.icon}</span>
+                  <span>{archiving ? "Archiving…" : action.label}</span>
+                </button>
+              );
+            }
+            const isActive = activeSection === action.id;
             return (
-              <div key={action.id}>
-                {activeSection !== action.id ? (
-                  <button
-                    onClick={doArchive}
-                    disabled={archiving}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-red-400 hover:bg-red-500/10 text-sm text-left transition-colors"
-                  >
-                    <span>{action.icon}</span>
-                    <span>{archiving ? "Archiving…" : action.label}</span>
-                  </button>
-                ) : null}
-              </div>
+              <button
+                key={action.id}
+                onClick={() => setActiveSection(isActive ? null : action.id)}
+                style={{
+                  width:"100%", display:"flex", alignItems:"center", gap:8, padding:"7px 10px", borderRadius:6,
+                  border:"none", cursor:"pointer", fontFamily:"inherit", fontSize:13, textAlign:"left",
+                  background: isActive ? "var(--input-bg)" : "none",
+                  color: isActive ? "var(--text-primary)" : "var(--text-secondary)",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--input-bg)"; e.currentTarget.style.color = "var(--text-primary)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = isActive ? "var(--input-bg)" : "none"; e.currentTarget.style.color = isActive ? "var(--text-primary)" : "var(--text-secondary)"; }}
+              >
+                <span>{action.icon}</span>
+                <span>{action.label}</span>
+              </button>
             );
-          }
-          return (
-            <button
-              key={action.id}
-              onClick={() => setActiveSection(activeSection === action.id ? null : action.id)}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors ${
-                activeSection === action.id
-                  ? "bg-white/10 text-white"
-                  : "text-white/70 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              <span>{action.icon}</span>
-              <span>{action.label}</span>
-            </button>
-          );
-        })}
+          })}
+        </div>
+
+        {/* Inline sub-sections */}
+        {activeSection === "rename" && <div style={{ padding:"0 12px 12px" }}><RenameSection list={list} boardId={boardId} onUpdated={onUpdated} onClose={() => setActiveSection(null)} /></div>}
+        {activeSection === "color"  && <div style={{ padding:"0 12px 12px" }}><ColorSection  list={list} boardId={boardId} onUpdated={onUpdated} onClose={() => setActiveSection(null)} /></div>}
+
+        {/* Automation */}
+        {canEdit && (
+          <div style={{ borderTop:"1px solid var(--border)", padding:"10px 12px" }}>
+            <p style={{ fontSize:10, fontWeight:700, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:.5, marginBottom:8 }}>Automation</p>
+            <AutomationSection list={list} boardId={boardId} onUpdated={onUpdated} />
+          </div>
+        )}
       </div>
-
-      {activeSection === "rename" && (
-        <div className="px-3 pb-3">
-          <RenameSection list={list} boardId={boardId} onUpdated={onUpdated} onClose={() => setActiveSection(null)} />
-        </div>
-      )}
-      {activeSection === "wip" && (
-        <div className="px-3 pb-3">
-          <WipSection list={list} boardId={boardId} onUpdated={onUpdated} onClose={() => setActiveSection(null)} />
-        </div>
-      )}
-      {activeSection === "color" && (
-        <div className="px-3 pb-3">
-          <ColorSection list={list} boardId={boardId} onUpdated={onUpdated} onClose={() => setActiveSection(null)} />
-        </div>
-      )}
-
-      {/* Automation section always visible at the bottom */}
-      {canEdit && (
-        <div className="border-t border-white/10 px-3 py-3">
-          <p className="text-white/40 text-xs uppercase tracking-wider mb-2">Automation</p>
-          <AutomationSection list={list} boardId={boardId} onUpdated={onUpdated} />
-        </div>
-      )}
     </div>
   );
 }

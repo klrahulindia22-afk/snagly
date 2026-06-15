@@ -8,7 +8,7 @@ const TYPES = [
     icon: "🟣",
     fields: [
       { key: "api_token", label: "API Token", type: "password", placeholder: "pk_..." },
-      { key: "list_id", label: "List ID", type: "text", placeholder: "901234567890" },
+      { key: "list_id",   label: "List ID",   type: "text",     placeholder: "901234567890" },
     ],
     hint: "Find your API token in ClickUp → Settings → Apps. Get the List ID from the list URL.",
   },
@@ -18,8 +18,8 @@ const TYPES = [
     icon: "⚫",
     fields: [
       { key: "token", label: "Personal Access Token", type: "password", placeholder: "ghp_..." },
-      { key: "owner", label: "Owner (user or org)", type: "text", placeholder: "acme-corp" },
-      { key: "repo", label: "Repository name", type: "text", placeholder: "my-repo" },
+      { key: "owner", label: "Owner (user or org)",   type: "text",     placeholder: "acme-corp" },
+      { key: "repo",  label: "Repository name",       type: "text",     placeholder: "my-repo" },
     ],
     hint: "Create a token at GitHub → Settings → Developer settings → Personal access tokens (needs 'repo' scope).",
   },
@@ -28,57 +28,62 @@ const TYPES = [
     label: "GitLab",
     icon: "🟠",
     fields: [
-      { key: "token", label: "Personal Access Token", type: "password", placeholder: "glpat-..." },
-      { key: "project_id", label: "Project ID", type: "text", placeholder: "12345678" },
-      { key: "base_url", label: "GitLab URL (self-hosted)", type: "text", placeholder: "https://gitlab.com" },
+      { key: "token",      label: "Personal Access Token", type: "password", placeholder: "glpat-..." },
+      { key: "project_id", label: "Project ID",            type: "text",     placeholder: "12345678" },
+      { key: "base_url",   label: "GitLab URL (self-hosted)", type: "text",  placeholder: "https://gitlab.com" },
     ],
     hint: "Find the Project ID in GitLab → Project → Settings → General. Leave base URL as https://gitlab.com for cloud.",
   },
 ];
 
+const inp = {
+  width: "100%", background: "var(--input-bg)", border: "1px solid var(--border)",
+  borderRadius: 8, padding: "8px 12px", color: "var(--text-primary)",
+  fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box",
+};
+
+const lbl = {
+  display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-muted)",
+  textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 5,
+};
+
 function AddForm({ boardId, onAdded, onCancel }) {
-  const [type, setType] = useState("github");
-  const [name, setName] = useState("");
+  const [type,   setType]   = useState("github");
+  const [name,   setName]   = useState("");
   const [fields, setFields] = useState({});
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [error,  setError]  = useState("");
 
   const typeDef = TYPES.find((t) => t.value === type);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    setSaving(true);
+    setError(""); setSaving(true);
     try {
       const config = { ...fields };
       if (type === "gitlab" && !config.base_url) config.base_url = "https://gitlab.com";
-      const res = await createIntegration(boardId, {
-        type,
-        name: name.trim() || undefined,
-        config,
-      });
+      const res = await createIntegration(boardId, { type, name: name.trim() || undefined, config });
       onAdded(res.data);
     } catch (err) {
       setError(err.response?.data?.detail?.message || err.response?.data?.detail || "Failed to save integration");
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
+    <form onSubmit={handleSubmit} style={{ display:"flex", flexDirection:"column", gap:14 }}>
       {/* Type selector */}
-      <div className="flex gap-2">
+      <div style={{ display:"flex", gap:8 }}>
         {TYPES.map((t) => (
           <button
-            key={t.value}
-            type="button"
+            key={t.value} type="button"
             onClick={() => { setType(t.value); setFields({}); }}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-              type === t.value
-                ? "border-[#0f9e8e] bg-[#0f9e8e]/20 text-white"
-                : "border-white/15 text-white/50 hover:text-white hover:border-white/30"
-            }`}
+            style={{
+              flex:1, padding:"6px 4px", borderRadius:8, fontSize:12, fontWeight:500,
+              cursor:"pointer", fontFamily:"inherit", transition:"all .12s",
+              border: type === t.value ? "1.5px solid #6c63ff" : "1.5px solid var(--border)",
+              background: type === t.value ? "rgba(108,99,255,0.12)" : "var(--input-bg)",
+              color: type === t.value ? "#6c63ff" : "var(--text-muted)",
+            }}
           >
             {t.icon} {t.label}
           </button>
@@ -87,49 +92,58 @@ function AddForm({ boardId, onAdded, onCancel }) {
 
       {/* Display name */}
       <div>
-        <label className="block text-white/50 text-[10px] mb-1">Display name (optional)</label>
+        <label style={lbl}>Display name (optional)</label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder={typeDef?.label}
           maxLength={100}
-          className="w-full bg-white/8 border border-white/15 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-[#0f9e8e]"
+          style={inp}
+          onFocus={(e) => { e.target.style.borderColor = "#6c63ff"; }}
+          onBlur={(e) => { e.target.style.borderColor = "var(--border)"; }}
         />
       </div>
 
-      {/* Type-specific fields */}
       {typeDef?.fields.map((f) => (
         <div key={f.key}>
-          <label className="block text-white/50 text-[10px] mb-1">{f.label}</label>
+          <label style={lbl}>{f.label}</label>
           <input
             type={f.type}
             value={fields[f.key] || ""}
             onChange={(e) => setFields((prev) => ({ ...prev, [f.key]: e.target.value }))}
             placeholder={f.placeholder}
             autoComplete="off"
-            className="w-full bg-white/8 border border-white/15 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:border-[#0f9e8e] placeholder-white/20"
+            style={inp}
+            onFocus={(e) => { e.target.style.borderColor = "#6c63ff"; }}
+            onBlur={(e) => { e.target.style.borderColor = "var(--border)"; }}
           />
         </div>
       ))}
 
       {typeDef?.hint && (
-        <p className="text-white/25 text-[10px] leading-relaxed">{typeDef.hint}</p>
+        <p style={{ fontSize:11, color:"var(--text-muted)", lineHeight:1.5, margin:0 }}>{typeDef.hint}</p>
       )}
 
-      {error && <p className="text-red-400 text-xs">{error}</p>}
+      {error && <p style={{ color:"#de350b", fontSize:12, margin:0 }}>{error}</p>}
 
-      <div className="flex gap-2 pt-1">
+      <div style={{ display:"flex", gap:8 }}>
         <button
-          type="submit"
-          disabled={saving}
-          className="flex-1 py-2 rounded-lg bg-[#0f9e8e] hover:bg-[#0b8b7f] text-white text-xs font-medium disabled:opacity-50 transition-colors"
+          type="submit" disabled={saving}
+          style={{
+            flex:1, padding:"9px 0", background:"#6c63ff", color:"#fff",
+            border:"none", borderRadius:8, fontSize:13, fontWeight:600,
+            cursor:"pointer", fontFamily:"inherit", opacity:saving ? 0.6 : 1, transition:"background .12s",
+          }}
+          onMouseEnter={(e) => { if (!saving) e.currentTarget.style.background = "#5b52e0"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "#6c63ff"; }}
         >
           {saving ? "Saving…" : "Save integration"}
         </button>
         <button
-          type="button"
-          onClick={onCancel}
-          className="px-3 py-2 rounded-lg text-white/40 hover:text-white text-xs transition-colors"
+          type="button" onClick={onCancel}
+          style={{ padding:"9px 14px", background:"none", border:"1px solid var(--border)", borderRadius:8, color:"var(--text-muted)", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "var(--input-bg)"; e.currentTarget.style.color = "var(--text-primary)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "var(--text-muted)"; }}
         >
           Cancel
         </button>
@@ -149,9 +163,7 @@ function IntegrationRow({ integration, boardId, onUpdated, onDeleted }) {
     try {
       const res = await updateIntegration(boardId, integration.id, { is_active: !integration.is_active });
       onUpdated(res.data);
-    } finally {
-      setToggling(false);
-    }
+    } finally { setToggling(false); }
   };
 
   const handleDelete = async () => {
@@ -160,9 +172,7 @@ function IntegrationRow({ integration, boardId, onUpdated, onDeleted }) {
     try {
       await deleteIntegration(boardId, integration.id);
       onDeleted(integration.id);
-    } finally {
-      setDeleting(false);
-    }
+    } finally { setDeleting(false); }
   };
 
   const configEntries = Object.entries(integration.config || {}).filter(
@@ -170,46 +180,54 @@ function IntegrationRow({ integration, boardId, onUpdated, onDeleted }) {
   );
 
   return (
-    <div className="bg-[#252b3b] border border-white/10 rounded-xl px-4 py-3">
-      <div className="flex items-center gap-3">
-        <span className="text-lg">{typeDef.icon || "🔌"}</span>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="text-white/85 text-sm font-medium truncate">
+    <div style={{ background:"var(--input-bg)", border:"1px solid var(--border)", borderRadius:12, padding:"12px 14px" }}>
+      <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+        <span style={{ fontSize:18 }}>{typeDef.icon || "🔌"}</span>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <p style={{ fontSize:13, fontWeight:600, color:"var(--text-primary)", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
               {integration.name || typeDef.label || integration.type}
             </p>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-              integration.is_active
-                ? "bg-green-500/20 text-green-400"
-                : "bg-white/10 text-white/30"
-            }`}>
+            <span style={{
+              fontSize:10, padding:"2px 7px", borderRadius:10, fontWeight:600,
+              background: integration.is_active ? "rgba(97,189,79,0.15)" : "var(--input-bg)",
+              color: integration.is_active ? "#61bd4f" : "var(--text-muted)",
+              border: `1px solid ${integration.is_active ? "rgba(97,189,79,0.3)" : "var(--border)"}`,
+            }}>
               {integration.is_active ? "Active" : "Inactive"}
             </span>
           </div>
           {configEntries.length > 0 && (
-            <p className="text-white/30 text-[10px] mt-0.5 truncate">
+            <p style={{ fontSize:10, color:"var(--text-muted)", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
               {configEntries.map(([k, v]) => `${k}: ${v}`).join(" · ")}
             </p>
           )}
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
           <button
-            onClick={handleToggle}
-            disabled={toggling}
-            className="px-2 py-1 text-[10px] rounded-lg bg-white/8 hover:bg-white/15 text-white/50 hover:text-white transition-colors disabled:opacity-50"
+            onClick={handleToggle} disabled={toggling}
+            style={{
+              padding:"4px 10px", fontSize:11, borderRadius:6,
+              background:"var(--modal-bg)", border:"1px solid var(--border)",
+              color:"var(--text-secondary)", cursor:"pointer", fontFamily:"inherit",
+              opacity:toggling ? 0.5 : 1, transition:"background .1s",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--input-bg)"; e.currentTarget.style.color = "var(--text-primary)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "var(--modal-bg)"; e.currentTarget.style.color = "var(--text-secondary)"; }}
           >
             {integration.is_active ? "Disable" : "Enable"}
           </button>
           <button
-            onClick={handleDelete}
-            disabled={deleting}
+            onClick={handleDelete} disabled={deleting}
             aria-label="Delete integration"
-            className="p-1 rounded-lg text-white/20 hover:text-red-400 hover:bg-red-400/10 transition-colors disabled:opacity-50"
+            style={{ padding:5, borderRadius:6, background:"none", border:"none", color:"var(--text-muted)", cursor:"pointer", opacity:deleting ? 0.5 : 1, transition:"color .1s, background .1s" }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "#de350b"; e.currentTarget.style.background = "rgba(222,53,11,0.1)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.background = "none"; }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14H6L5 6" />
-              <path d="M10 11v6M14 11v6" />
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14H6L5 6"/>
+              <path d="M10 11v6M14 11v6"/>
             </svg>
           </button>
         </div>
@@ -220,8 +238,8 @@ function IntegrationRow({ integration, boardId, onUpdated, onDeleted }) {
 
 export default function IntegrationsModal({ boardId, onClose }) {
   const [integrations, setIntegrations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
+  const [loading,  setLoading]  = useState(true);
+  const [showAdd,  setShowAdd]  = useState(false);
 
   useEffect(() => {
     getBoardIntegrations(boardId)
@@ -229,54 +247,48 @@ export default function IntegrationsModal({ boardId, onClose }) {
       .finally(() => setLoading(false));
   }, [boardId]);
 
-  const handleAdded = (integration) => {
-    setIntegrations((prev) => [...prev, integration]);
-    setShowAdd(false);
-  };
-
-  const handleUpdated = (updated) => {
-    setIntegrations((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
-  };
-
-  const handleDeleted = (id) => {
-    setIntegrations((prev) => prev.filter((i) => i.id !== id));
-  };
+  const handleAdded   = (i) => { setIntegrations((p) => [...p, i]); setShowAdd(false); };
+  const handleUpdated = (u) => { setIntegrations((p) => p.map((i) => (i.id === u.id ? u : i))); };
+  const handleDeleted = (id) => { setIntegrations((p) => p.filter((i) => i.id !== id)); };
 
   return (
     <div
-      className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      style={{ position:"fixed", inset:0, zIndex:150, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(9,30,66,0.54)", backdropFilter:"blur(2px)" }}
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md mx-4 bg-[#1e2435] border border-white/15 rounded-2xl shadow-2xl overflow-hidden"
+        style={{
+          width:"100%", maxWidth:460, margin:"0 16px",
+          background:"var(--modal-bg)", border:"1px solid var(--border)",
+          borderRadius:14, boxShadow:"0 20px 60px rgba(0,0,0,.25)", overflow:"hidden",
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 20px", borderBottom:"1px solid var(--border)" }}>
           <div>
-            <h2 className="text-white font-semibold text-sm">Integrations</h2>
-            <p className="text-white/35 text-xs mt-0.5">Push cards to ClickUp, GitHub, or GitLab</p>
+            <h2 style={{ fontSize:15, fontWeight:700, color:"var(--text-primary)", margin:0 }}>Integrations</h2>
+            <p style={{ fontSize:12, color:"var(--text-muted)", margin:"3px 0 0" }}>Push cards to ClickUp, GitHub, or GitLab</p>
           </div>
           <button
-            onClick={onClose}
-            aria-label="Close"
-            className="text-white/30 hover:text-white transition-colors text-lg leading-none"
-          >
-            ✕
-          </button>
+            onClick={onClose} aria-label="Close"
+            style={{ background:"none", border:"none", color:"var(--text-muted)", cursor:"pointer", fontSize:18, lineHeight:1, padding:4 }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-primary)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
+          >✕</button>
         </div>
 
         {/* Body */}
-        <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
+        <div style={{ padding:"16px 20px", display:"flex", flexDirection:"column", gap:12, maxHeight:"60vh", overflowY:"auto" }}>
           {loading ? (
-            <p className="text-white/30 text-xs text-center py-8">Loading…</p>
+            <p style={{ color:"var(--text-muted)", fontSize:13, textAlign:"center", padding:"32px 0" }}>Loading…</p>
           ) : (
             <>
               {integrations.length === 0 && !showAdd && (
-                <div className="text-center py-8">
-                  <p className="text-4xl mb-3">🔌</p>
-                  <p className="text-white/40 text-sm">No integrations yet</p>
-                  <p className="text-white/25 text-xs mt-1">Connect ClickUp, GitHub, or GitLab</p>
+                <div style={{ textAlign:"center", padding:"32px 0" }}>
+                  <p style={{ fontSize:36, marginBottom:12 }}>🔌</p>
+                  <p style={{ color:"var(--text-secondary)", fontSize:13, margin:0 }}>No integrations yet</p>
+                  <p style={{ color:"var(--text-muted)", fontSize:11, marginTop:4 }}>Connect ClickUp, GitHub, or GitLab</p>
                 </div>
               )}
 
@@ -291,18 +303,21 @@ export default function IntegrationsModal({ boardId, onClose }) {
               ))}
 
               {showAdd ? (
-                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                  <p className="text-white text-xs font-semibold mb-3">Add integration</p>
-                  <AddForm
-                    boardId={boardId}
-                    onAdded={handleAdded}
-                    onCancel={() => setShowAdd(false)}
-                  />
+                <div style={{ background:"var(--modal-sidebar-bg,var(--input-bg))", border:"1px solid var(--border)", borderRadius:10, padding:16 }}>
+                  <p style={{ fontSize:12, fontWeight:600, color:"var(--text-primary)", marginBottom:12, marginTop:0 }}>Add integration</p>
+                  <AddForm boardId={boardId} onAdded={handleAdded} onCancel={() => setShowAdd(false)} />
                 </div>
               ) : (
                 <button
                   onClick={() => setShowAdd(true)}
-                  className="w-full py-2 rounded-xl border-2 border-dashed border-white/15 hover:border-[#0f9e8e] text-white/40 hover:text-[#0f9e8e] text-xs font-medium transition-colors"
+                  style={{
+                    width:"100%", padding:"9px 0", borderRadius:10,
+                    border:"2px dashed var(--border)", background:"none",
+                    color:"var(--text-muted)", fontSize:12, fontWeight:500,
+                    cursor:"pointer", fontFamily:"inherit", transition:"border-color .12s, color .12s",
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#6c63ff"; e.currentTarget.style.color = "#6c63ff"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-muted)"; }}
                 >
                   + Add integration
                 </button>

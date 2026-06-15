@@ -6,7 +6,7 @@ export const getAttachments = (cardId) =>
 export const uploadAttachment = (cardId, formData) =>
   client
     .post(`/cards/${cardId}/attachments`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
+      headers: { "Content-Type": undefined },
     })
     .then((r) => r.data);
 

@@ -1,5 +1,6 @@
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator, ConfigDict
 from typing import Optional
+from decimal import Decimal
 from datetime import datetime
 from models.user import UserRole
 
@@ -75,3 +76,70 @@ class AdminStatsOut(BaseModel):
     active_users: int
     total_boards: int
     pending_invites: int
+
+
+class PlanOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    display_name: str
+    price_monthly: Decimal
+    price_yearly: Decimal
+    is_active: bool
+
+
+class SubscriptionCreate(BaseModel):
+    user_id: int
+    plan_id: int
+    started_at: datetime
+    expires_at: Optional[datetime] = None
+    amount_paid: Decimal = Decimal('0.00')
+    billing_cycle: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class SubscriptionUpdate(BaseModel):
+    plan_id: Optional[int] = None
+    expires_at: Optional[datetime] = None
+    is_active: Optional[bool] = None
+    cancelled_at: Optional[datetime] = None
+    amount_paid: Optional[Decimal] = None
+    billing_cycle: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class SubscriptionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: int
+    user_email: str
+    user_name: str
+    user_avatar_url: Optional[str]
+    plan_id: int
+    plan_name: str
+    plan_display_name: str
+    started_at: datetime
+    expires_at: Optional[datetime]
+    amount_paid: Optional[Decimal]
+    billing_cycle: Optional[str]
+    is_active: bool
+    cancelled_at: Optional[datetime]
+    notes: Optional[str]
+    created_at: Optional[datetime]
+
+
+class RevenuePlanBreakdown(BaseModel):
+    plan_id: int
+    plan_name: str
+    plan_display_name: str
+    subscriber_count: int
+    total_revenue: float
+
+
+class RevenueStatsOut(BaseModel):
+    total_revenue: float
+    active_subscriptions: int
+    expiring_this_month: int
+    new_this_month: int
+    free_users: int
+    revenue_by_plan: list[RevenuePlanBreakdown]

@@ -1,7 +1,10 @@
 import asyncio
 import json
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from models.notification import Notification
+
+logger = logging.getLogger(__name__)
 
 
 async def create_notification(
@@ -24,6 +27,10 @@ async def create_notification(
 
 
 async def _push_ws(user_id: int, notif_type: str, created_by_id: int | None, payload: dict | None) -> None:
+    # Brief delay so the caller's db.commit() always finishes before the WS
+    # message lands at the client (avoids a race where the client re-polls
+    # before the notification row is committed).
+    await asyncio.sleep(0.15)
     try:
         from services.ws_manager import manager
         await manager.send_to_user(user_id, {
@@ -34,5 +41,6 @@ async def _push_ws(user_id: int, notif_type: str, created_by_id: int | None, pay
                 "payload": payload,
             },
         })
-    except Exception:
-        pass
+        logger.debug("WS push sent: type=%s user_id=%d", notif_type, user_id)
+    except Exception as e:
+        logger.warning("WS push failed for user %d (type=%s): %s", user_id, notif_type, e)

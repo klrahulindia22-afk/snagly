@@ -20,8 +20,12 @@ export async function resendOtp(email) {
   return data.data
 }
 
-export async function login2fa(email, method, code) {
-  const { data } = await client.post('/auth/login-2fa', { email, method, code })
+export async function login2fa(preAuthToken, method, code) {
+  const { data } = await client.post(
+    '/auth/login-2fa',
+    { method, code },
+    { headers: { Authorization: `Bearer ${preAuthToken}` } }
+  )
   return data.data
 }
 
@@ -30,18 +34,27 @@ export async function request2faOtp(email) {
   return data.data
 }
 
-export async function setup2fa() {
-  const { data } = await client.post('/auth/setup-2fa')
+export async function setup2fa(signal, preAuthToken = null) {
+  const config = { signal }
+  if (preAuthToken) config.headers = { Authorization: `Bearer ${preAuthToken}` }
+  const { data } = await client.post('/auth/setup-2fa', undefined, config)
   return data.data
 }
 
-export async function confirm2fa(totpCode) {
-  const { data } = await client.post('/auth/confirm-2fa', { totp_code: totpCode })
+export async function confirm2fa(totpCode, preAuthToken = null) {
+  const config = {}
+  if (preAuthToken) config.headers = { Authorization: `Bearer ${preAuthToken}` }
+  const { data } = await client.post('/auth/confirm-2fa', { totp_code: totpCode }, config)
   return data.data
 }
 
 export async function disable2fa() {
   const { data } = await client.post('/auth/disable-2fa')
+  return data.data
+}
+
+export async function regenerateBackupCodes(totpCode) {
+  const { data } = await client.post('/auth/regenerate-backup-codes', { totp_code: totpCode })
   return data.data
 }
 

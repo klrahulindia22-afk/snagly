@@ -27,3 +27,14 @@ from models.plan import Plan, PlanFeatureFlag                     # noqa
 from models.system_config import SystemConfig                     # noqa
 from models.login_attempt import LoginAttempt                     # noqa
 from models.admin_audit_log import AdminAuditLog                  # noqa
+from models.sla_rule import SLARule                               # noqa
+from models.digest_preference import DigestPreference             # noqa
+from models.card_watcher import CardWatcher                       # noqa
+from models.card_template import CardTemplate                     # noqa
+from models.field_definition import FieldDefinition               # noqa
+from models.card_field import CardField                           # noqa
+from models.time_entry import TimeEntry                           # noqa
+from models.user_subscription import UserSubscription             # noqa  — admin revenue (pre-Phase 16)
+from models.subscription import Subscription, PaymentMethod, Invoice  # noqa  — Phase 16
+from models.coupon import Coupon, CouponRedemption                    # noqa  — Phase 16
+from models.webhook_event import WebhookEvent                         # noqa  — Phase 16

@@ -10,25 +10,22 @@ function timeAgo(dateStr) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-function ActionLabel({ action }) {
-  const labels = {
-    "card.created": "created card",
-    "card.updated": "updated card",
-    "card.moved": "moved card",
-    "card.archived": "archived card",
-    "card.restored": "restored card",
-    "card.assigned": "assigned",
-    "card.label_added": "added label",
-    "card.label_removed": "removed label",
-    "card.comment": "commented on",
-    "card.pushed": "pushed card to integration",
-    "member.joined": "joined board",
-    "member.left": "left board",
-    "join_request.approved": "approved join request",
-    "board.created": "created board",
-  };
-  return <span className="text-white/55">{labels[action] || action}</span>;
-}
+const ACTION_LABELS = {
+  "card.created": "created card",
+  "card.updated": "updated card",
+  "card.moved": "moved card",
+  "card.archived": "archived card",
+  "card.restored": "restored card",
+  "card.assigned": "assigned",
+  "card.label_added": "added label",
+  "card.label_removed": "removed label",
+  "card.comment": "commented on",
+  "card.pushed": "pushed card to integration",
+  "member.joined": "joined board",
+  "member.left": "left board",
+  "join_request.approved": "approved join request",
+  "board.created": "created board",
+};
 
 export default function BoardActivityPanel({ boardId, onClose }) {
   const [entries, setEntries] = useState([]);
@@ -52,11 +49,8 @@ export default function BoardActivityPanel({ boardId, onClose }) {
       const items = res.data || [];
       setEntries((prev) => (p === 1 ? items : [...prev, ...items]));
       setHasMore(items.length === PER_PAGE);
-    } catch {
-      /* ignore */
-    } finally {
-      setLoading(false);
-    }
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
   }, [boardId, filterUserId]);
 
   useEffect(() => { load(1); }, [load]);
@@ -75,20 +69,28 @@ export default function BoardActivityPanel({ boardId, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex justify-end"
+      style={{ position:"fixed", inset:0, zIndex:100, display:"flex", justifyContent:"flex-end" }}
       onClick={onClose}
     >
       <div
-        className="w-80 h-full bg-[#1e2435] border-l border-white/10 flex flex-col shadow-2xl"
+        style={{
+          width: 320, height:"100%",
+          background:"var(--modal-bg)",
+          borderLeft:"1px solid var(--border)",
+          display:"flex", flexDirection:"column",
+          boxShadow:"-8px 0 32px rgba(0,0,0,.18)",
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
-          <h3 className="text-white font-semibold text-sm">Board activity</h3>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 16px", borderBottom:"1px solid var(--border)", flexShrink:0 }}>
+          <h3 style={{ fontSize:14, fontWeight:700, color:"var(--text-primary)", margin:0 }}>Board activity</h3>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="text-white/30 hover:text-white transition-colors text-lg leading-none"
+            style={{ background:"none", border:"none", color:"var(--text-muted)", cursor:"pointer", fontSize:18, lineHeight:1, padding:4, borderRadius:4 }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-primary)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
           >
             ✕
           </button>
@@ -96,11 +98,17 @@ export default function BoardActivityPanel({ boardId, onClose }) {
 
         {/* Member filter */}
         {members.length > 0 && (
-          <div className="px-4 py-2 border-b border-white/5 shrink-0">
+          <div style={{ padding:"8px 12px", borderBottom:"1px solid var(--border)", flexShrink:0 }}>
             <select
               value={filterUserId}
               onChange={(e) => handleFilterChange(e.target.value)}
-              className="w-full bg-white/8 border border-white/15 text-white/70 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#0f9e8e]"
+              style={{
+                width:"100%", background:"var(--input-bg)", border:"1px solid var(--border)",
+                color:"var(--text-secondary)", fontSize:12, borderRadius:8,
+                padding:"6px 10px", outline:"none", fontFamily:"inherit",
+              }}
+              onFocus={(e) => { e.target.style.borderColor = "#6c63ff"; }}
+              onBlur={(e) => { e.target.style.borderColor = "var(--border)"; }}
             >
               <option value="">All members</option>
               {members.map((m) => (
@@ -111,38 +119,45 @@ export default function BoardActivityPanel({ boardId, onClose }) {
         )}
 
         {/* Feed */}
-        <div className="flex-1 overflow-y-auto">
+        <div style={{ flex:1, overflowY:"auto" }}>
           {loading && entries.length === 0 ? (
-            <div className="py-12 text-center text-white/25 text-sm">Loading…</div>
+            <div style={{ padding:"48px 0", textAlign:"center", color:"var(--text-muted)", fontSize:13 }}>Loading…</div>
           ) : entries.length === 0 ? (
-            <div className="py-12 text-center">
-              <p className="text-3xl mb-2">📋</p>
-              <p className="text-white/35 text-sm">No activity yet</p>
+            <div style={{ padding:"48px 0", textAlign:"center" }}>
+              <p style={{ fontSize:28, marginBottom:8 }}>📋</p>
+              <p style={{ color:"var(--text-muted)", fontSize:13 }}>No activity yet</p>
             </div>
           ) : (
-            <div className="divide-y divide-white/5">
-              {entries.map((entry) => (
-                <div key={entry.id} className="px-4 py-3 flex gap-2.5">
+            <div>
+              {entries.map((entry, i) => (
+                <div
+                  key={entry.id}
+                  style={{
+                    padding:"10px 16px", display:"flex", gap:10,
+                    borderBottom:"1px solid var(--border)",
+                  }}
+                >
                   {/* Avatar */}
                   <div
-                    className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-[10px] font-semibold text-white mt-0.5"
-                    style={{ backgroundColor: entry.user?.initials_color || "#0f9e8e" }}
+                    style={{
+                      width:24, height:24, borderRadius:"50%", flexShrink:0,
+                      display:"flex", alignItems:"center", justifyContent:"center",
+                      fontSize:9, fontWeight:700, color:"#fff", marginTop:2,
+                      backgroundColor: entry.user?.initials_color || "#6c63ff",
+                    }}
                     title={entry.user?.full_name}
                   >
                     {(entry.user?.full_name || "?").slice(0, 2).toUpperCase()}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white/75 text-xs leading-snug">
-                      <span className="font-medium text-white">{entry.user?.full_name || "Someone"}</span>{" "}
-                      <ActionLabel action={entry.action} />
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <p style={{ fontSize:12, color:"var(--text-secondary)", lineHeight:1.4, margin:0 }}>
+                      <span style={{ fontWeight:600, color:"var(--text-primary)" }}>{entry.user?.full_name || "Someone"}</span>{" "}
+                      <span style={{ color:"var(--text-muted)" }}>{ACTION_LABELS[entry.action] || entry.action}</span>
                       {entry.card && (
-                        <>
-                          {" "}
-                          <span className="text-white/40">"{entry.card.title}"</span>
-                        </>
+                        <> <span style={{ color:"var(--text-muted)" }}>"{entry.card.title}"</span></>
                       )}
                     </p>
-                    <p className="text-white/25 text-[10px] mt-0.5">{timeAgo(entry.created_at)}</p>
+                    <p style={{ fontSize:10, color:"var(--text-muted)", marginTop:3 }}>{timeAgo(entry.created_at)}</p>
                   </div>
                 </div>
               ))}
@@ -150,10 +165,17 @@ export default function BoardActivityPanel({ boardId, onClose }) {
           )}
 
           {hasMore && !loading && (
-            <div className="px-4 py-3">
+            <div style={{ padding:"12px 16px" }}>
               <button
                 onClick={loadMore}
-                className="w-full py-2 text-xs text-white/40 hover:text-white transition-colors border border-white/10 rounded-lg hover:border-white/25"
+                style={{
+                  width:"100%", padding:"8px 0", fontSize:12,
+                  color:"var(--text-muted)", background:"none",
+                  border:"1px solid var(--border)", borderRadius:8,
+                  cursor:"pointer", fontFamily:"inherit", transition:"border-color .12s, color .12s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--text-secondary)"; e.currentTarget.style.color = "var(--text-primary)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-muted)"; }}
               >
                 Load more
               </button>
@@ -161,7 +183,7 @@ export default function BoardActivityPanel({ boardId, onClose }) {
           )}
 
           {loading && entries.length > 0 && (
-            <p className="text-center text-white/25 text-xs py-3">Loading…</p>
+            <p style={{ textAlign:"center", color:"var(--text-muted)", fontSize:11, padding:"10px 0" }}>Loading…</p>
           )}
         </div>
       </div>

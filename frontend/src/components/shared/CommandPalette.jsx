@@ -92,7 +92,7 @@ export default function CommandPalette({ open, onClose, onShowShortcuts }) {
     const matchedBoards = boards.filter((b) => fuzzy(b.name, query))
     if (matchedBoards.length) {
       results.push({ type: 'heading', label: 'Boards' })
-      matchedBoards.forEach((b) => results.push({ type: 'board', id: b.id, label: b.name, hint: `${b.member_count ?? ''} members`, _group: 'board' }))
+      matchedBoards.forEach((b) => results.push({ type: 'board', id: b.id, slug: b.slug, label: b.name, hint: `${b.member_count ?? ''} members`, _group: 'board' }))
     }
     if (cards.length) {
       results.push({ type: 'heading', label: 'Cards' })
@@ -112,8 +112,8 @@ export default function CommandPalette({ open, onClose, onShowShortcuts }) {
     if (!item) return
     onClose()
     if (item.type === 'board') {
-      trackRecent({ type: 'board', id: item.id, label: item.label })
-      navigate(`/board/${item.id}`)
+      trackRecent({ type: 'board', id: item.id, slug: item.slug, label: item.label })
+      navigate(`/board/${item.slug || item.id}`)
     } else if (item.type === 'card') {
       trackRecent({ type: 'card', id: item.id, label: item.label, hint: item.hint, board_id: item.board_id })
       navigate(`/board/${item.board_id}?openCard=${item.id}`)
@@ -124,7 +124,7 @@ export default function CommandPalette({ open, onClose, onShowShortcuts }) {
     }
     // Recent items that are boards/cards handled above
     else if (item._group === 'recent') {
-      if (item.type === 'board') { trackRecent(item); navigate(`/board/${item.id}`) }
+      if (item.type === 'board') { trackRecent(item); navigate(`/board/${item.slug || item.id}`) }
       else if (item.type === 'card') { trackRecent(item); navigate(`/board/${item.board_id}?openCard=${item.id}`) }
     }
   }, [navigate, onClose, onShowShortcuts])
@@ -172,7 +172,7 @@ export default function CommandPalette({ open, onClose, onShowShortcuts }) {
       >
         {/* Input */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f9e8e" strokeWidth="2.5" className="shrink-0">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6c63ff" strokeWidth="2.5" className="shrink-0">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
           </svg>
           <input
@@ -211,7 +211,7 @@ export default function CommandPalette({ open, onClose, onShowShortcuts }) {
                 onClick={() => execute(item)}
                 onMouseEnter={() => setHighlighted(idx)}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
-                  isHl ? 'bg-[#0f9e8e]/20' : 'hover:bg-white/5'
+                  isHl ? 'bg-[#6c63ff]/20' : 'hover:bg-white/5'
                 }`}
               >
                 <span className="text-sm w-5 text-center shrink-0 text-white/50">{icon}</span>

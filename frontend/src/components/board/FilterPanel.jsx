@@ -4,37 +4,76 @@ import { getLabels } from "../../api/labels";
 
 const PRIORITY_COLORS = {
   urgent: "#de350b",
-  high: "#ff991f",
+  high:   "#ff991f",
   normal: "#0079bf",
-  low: "#8993a4",
+  low:    "#8993a4",
 };
 
 const SEVERITY_COLORS = {
   critical: "#de350b",
-  high: "#ff991f",
-  medium: "#f2d600",
-  low: "#61bd4f",
+  high:     "#ff991f",
+  medium:   "#f2d600",
+  low:      "#61bd4f",
 };
+
+function SectionLabel({ children }) {
+  return (
+    <p style={{
+      fontSize: 10, fontWeight: 700, textTransform: "uppercase",
+      letterSpacing: "0.6px", color: "var(--text-muted)",
+      marginBottom: 8, marginTop: 0,
+    }}>
+      {children}
+    </p>
+  );
+}
 
 function FilterGroup({ label, children }) {
   return (
     <div>
-      <p className="text-white/40 text-[10px] font-semibold uppercase tracking-wide mb-2">{label}</p>
-      <div className="flex flex-wrap gap-1.5">{children}</div>
+      <SectionLabel>{label}</SectionLabel>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>{children}</div>
     </div>
   );
 }
 
 function Chip({ active, onClick, color, children }) {
+  const base = {
+    display: "inline-flex", alignItems: "center",
+    padding: "4px 12px", borderRadius: 20,
+    fontSize: 12, fontWeight: 500,
+    cursor: "pointer", border: "1.5px solid",
+    transition: "all .15s", fontFamily: "inherit",
+    lineHeight: 1.4,
+  };
+
+  const inactive = {
+    ...base,
+    borderColor: "var(--border)",
+    background: "transparent",
+    color: "var(--text-secondary)",
+  };
+
+  const activeStyle = color
+    ? { ...base, borderColor: color, background: color + "18", color: color }
+    : { ...base, borderColor: "#6c63ff", background: "#6c63ff18", color: "#6c63ff" };
+
   return (
     <button
       onClick={onClick}
-      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${
-        active
-          ? "border-[#0f9e8e] ring-1 ring-[#0f9e8e] text-white"
-          : "border-white/15 text-white/55 hover:border-white/30 hover:text-white/80"
-      }`}
-      style={color ? { borderColor: active ? color : undefined, backgroundColor: active ? color + "33" : undefined } : undefined}
+      style={active ? activeStyle : inactive}
+      onMouseEnter={(e) => {
+        if (!active) {
+          e.currentTarget.style.borderColor = color || "#6c63ff";
+          e.currentTarget.style.color = color || "#6c63ff";
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!active) {
+          e.currentTarget.style.borderColor = "var(--border)";
+          e.currentTarget.style.color = "var(--text-secondary)";
+        }
+      }}
     >
       {children}
     </button>
@@ -45,21 +84,47 @@ function MemberChip({ active, onClick, member }) {
   const initials = member.full_name
     ? member.full_name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : "?";
+
+  const base = {
+    display: "inline-flex", alignItems: "center", gap: 6,
+    padding: "4px 10px 4px 4px", borderRadius: 20,
+    fontSize: 12, fontWeight: 500,
+    cursor: "pointer", border: "1.5px solid",
+    transition: "all .15s", fontFamily: "inherit",
+  };
+
   return (
     <button
       onClick={onClick}
       title={member.full_name}
-      className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-all border ${
-        active ? "border-[#0f9e8e] bg-[#0f9e8e]/20 text-white" : "border-white/15 text-white/55 hover:border-white/30"
-      }`}
+      style={active
+        ? { ...base, borderColor: "#6c63ff", background: "#6c63ff18", color: "#6c63ff" }
+        : { ...base, borderColor: "var(--border)", background: "transparent", color: "var(--text-secondary)" }
+      }
+      onMouseEnter={(e) => {
+        if (!active) {
+          e.currentTarget.style.borderColor = "#6c63ff";
+          e.currentTarget.style.color = "#6c63ff";
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!active) {
+          e.currentTarget.style.borderColor = "var(--border)";
+          e.currentTarget.style.color = "var(--text-secondary)";
+        }
+      }}
     >
-      <span
-        className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
-        style={{ backgroundColor: member.initials_color || "#0f9e8e" }}
-      >
+      <span style={{
+        width: 20, height: 20, borderRadius: "50%",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 9, fontWeight: 700, color: "#fff", flexShrink: 0,
+        backgroundColor: member.initials_color || "#6c63ff",
+      }}>
         {initials}
       </span>
-      <span className="max-w-[80px] truncate">{member.full_name}</span>
+      <span style={{ maxWidth: 90, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {member.full_name}
+      </span>
     </button>
   );
 }
@@ -74,7 +139,6 @@ export default function FilterPanel({ boardId, lists, filters, setFilters, onClo
     getLabels(boardId).then((r) => setLabels(r.data || [])).catch(() => {});
   }, [boardId]);
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e) => {
       if (panelRef.current && !panelRef.current.contains(e.target)) onClose();
@@ -92,56 +156,70 @@ export default function FilterPanel({ boardId, lists, filters, setFilters, onClo
   };
 
   const clearAll = () =>
-    setFilters({
-      priority: [],
-      severity: [],
-      source: [],
-      assignees: [],
-      labels: [],
-      dueDate: [],
-      lists: [],
-    });
+    setFilters({ priority: [], severity: [], source: [], assignees: [], labels: [], dueDate: [], lists: [] });
 
   const activeCount = Object.values(filters).reduce((n, arr) => n + arr.length, 0);
 
   return (
     <div
       ref={panelRef}
-      className="absolute top-full left-0 mt-1 z-50 w-72 bg-[#1e2435] border border-white/15 rounded-xl shadow-2xl overflow-hidden"
+      style={{
+        position: "absolute", top: "calc(100% + 6px)", left: 0,
+        zIndex: 1200, width: 288,
+        background: "var(--modal-bg, #fff)",
+        border: "1px solid var(--border, #dfe1e6)",
+        borderRadius: 10,
+        boxShadow: "0 8px 32px rgba(9,30,66,.16)",
+        overflow: "hidden",
+      }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2.5 border-b border-white/10">
-        <h3 className="text-white text-xs font-semibold">Filter cards</h3>
-        <div className="flex items-center gap-2">
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "10px 14px",
+        borderBottom: "1px solid var(--border)",
+      }}>
+        <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
+          Filter cards
+        </h3>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {activeCount > 0 && (
             <button
               onClick={clearAll}
-              className="text-[10px] text-[#0f9e8e] hover:text-white transition-colors"
+              style={{
+                background: "none", border: "none", cursor: "pointer",
+                fontSize: 11, fontWeight: 600, color: "#6c63ff",
+                fontFamily: "inherit", padding: 0,
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.color = "#5b52e0"}
+              onMouseLeave={(e) => e.currentTarget.style.color = "#6c63ff"}
             >
               Clear all ({activeCount})
             </button>
           )}
           <button
             onClick={onClose}
-            aria-label="Close filter panel"
-            className="text-white/30 hover:text-white text-sm leading-none"
+            aria-label="Close"
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              fontSize: 16, lineHeight: 1, color: "var(--text-muted)",
+              fontFamily: "inherit", padding: 0,
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = "var(--text-primary)"}
+            onMouseLeave={(e) => e.currentTarget.style.color = "var(--text-muted)"}
           >
-            ✕
+            ×
           </button>
         </div>
       </div>
 
-      {/* Groups */}
-      <div className="p-3 space-y-4 max-h-[420px] overflow-y-auto">
+      {/* Filter groups */}
+      <div style={{ padding: "14px 14px 16px", display: "flex", flexDirection: "column", gap: 16, maxHeight: 420, overflowY: "auto" }}>
+
         {/* Priority */}
         <FilterGroup label="Priority">
           {["urgent", "high", "normal", "low"].map((p) => (
-            <Chip
-              key={p}
-              active={filters.priority.includes(p)}
-              onClick={() => toggle("priority", p)}
-              color={PRIORITY_COLORS[p]}
-            >
+            <Chip key={p} active={filters.priority.includes(p)} onClick={() => toggle("priority", p)} color={PRIORITY_COLORS[p]}>
               {p.charAt(0).toUpperCase() + p.slice(1)}
             </Chip>
           ))}
@@ -150,12 +228,7 @@ export default function FilterPanel({ boardId, lists, filters, setFilters, onClo
         {/* Severity */}
         <FilterGroup label="Severity">
           {["critical", "high", "medium", "low"].map((s) => (
-            <Chip
-              key={s}
-              active={filters.severity.includes(s)}
-              onClick={() => toggle("severity", s)}
-              color={SEVERITY_COLORS[s]}
-            >
+            <Chip key={s} active={filters.severity.includes(s)} onClick={() => toggle("severity", s)} color={SEVERITY_COLORS[s]}>
               {s.charAt(0).toUpperCase() + s.slice(1)}
             </Chip>
           ))}
@@ -164,11 +237,7 @@ export default function FilterPanel({ boardId, lists, filters, setFilters, onClo
         {/* Source */}
         <FilterGroup label="Source">
           {["internal", "client"].map((src) => (
-            <Chip
-              key={src}
-              active={filters.source.includes(src)}
-              onClick={() => toggle("source", src)}
-            >
+            <Chip key={src} active={filters.source.includes(src)} onClick={() => toggle("source", src)}>
               {src.charAt(0).toUpperCase() + src.slice(1)}
             </Chip>
           ))}
@@ -192,12 +261,7 @@ export default function FilterPanel({ boardId, lists, filters, setFilters, onClo
         {labels.length > 0 && (
           <FilterGroup label="Labels">
             {labels.map((l) => (
-              <Chip
-                key={l.id}
-                active={filters.labels.includes(l.id)}
-                onClick={() => toggle("labels", l.id)}
-                color={l.color}
-              >
+              <Chip key={l.id} active={filters.labels.includes(l.id)} onClick={() => toggle("labels", l.id)} color={l.color}>
                 {l.name}
               </Chip>
             ))}
@@ -207,15 +271,11 @@ export default function FilterPanel({ boardId, lists, filters, setFilters, onClo
         {/* Due date */}
         <FilterGroup label="Due Date">
           {[
-            ["overdue", "Overdue"],
+            ["overdue",   "Overdue"],
             ["this_week", "Due this week"],
-            ["no_date", "No due date"],
+            ["no_date",   "No due date"],
           ].map(([val, label]) => (
-            <Chip
-              key={val}
-              active={filters.dueDate.includes(val)}
-              onClick={() => toggle("dueDate", val)}
-            >
+            <Chip key={val} active={filters.dueDate.includes(val)} onClick={() => toggle("dueDate", val)}>
               {label}
             </Chip>
           ))}
@@ -225,11 +285,7 @@ export default function FilterPanel({ boardId, lists, filters, setFilters, onClo
         {lists.length > 0 && (
           <FilterGroup label="Column">
             {lists.map((l) => (
-              <Chip
-                key={l.id}
-                active={filters.lists.includes(l.id)}
-                onClick={() => toggle("lists", l.id)}
-              >
+              <Chip key={l.id} active={filters.lists.includes(l.id)} onClick={() => toggle("lists", l.id)}>
                 {l.name}
               </Chip>
             ))}

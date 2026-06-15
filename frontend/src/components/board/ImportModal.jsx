@@ -2,19 +2,17 @@ import { useState, useRef } from "react";
 import { importBoard } from "../../api/timeEntries";
 
 export default function ImportModal({ boardId, onClose, onImported }) {
-  const [file, setFile] = useState(null);
-  const [preview, setPreview] = useState([]);
+  const [file,      setFile]      = useState(null);
+  const [preview,   setPreview]   = useState([]);
   const [importing, setImporting] = useState(false);
-  const [result, setResult] = useState(null);
-  const [err, setErr] = useState("");
+  const [result,    setResult]    = useState(null);
+  const [err,       setErr]       = useState("");
   const fileRef = useRef(null);
 
   const handleFile = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    setFile(f);
-    setResult(null);
-    setErr("");
+    setFile(f); setResult(null); setErr("");
     const reader = new FileReader();
     reader.onload = (ev) => {
       const lines = ev.target.result.split("\n").slice(0, 6);
@@ -25,38 +23,48 @@ export default function ImportModal({ boardId, onClose, onImported }) {
 
   const handleImport = async () => {
     if (!file) return;
-    setImporting(true);
-    setErr("");
+    setImporting(true); setErr("");
     try {
       const res = await importBoard(boardId, file);
       setResult(res.data);
       onImported?.();
     } catch (ex) {
       setErr(ex.response?.data?.detail?.message || ex.response?.data?.detail || "Import failed");
-    } finally {
-      setImporting(false);
-    }
+    } finally { setImporting(false); }
   };
 
   return (
     <div
-      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      style={{ position:"fixed", inset:0, zIndex:90, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(9,30,66,0.54)", backdropFilter:"blur(2px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="w-full max-w-lg bg-[#1e2435] border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
-          <h2 className="text-white font-semibold text-sm">Import cards from CSV</h2>
-          <button onClick={onClose} aria-label="Close" className="text-white/30 hover:text-white text-lg leading-none">✕</button>
+      <div
+        style={{
+          width:"100%", maxWidth:500, margin:"0 16px",
+          background:"var(--modal-bg)", border:"1px solid var(--border)",
+          borderRadius:14, boxShadow:"0 20px 60px rgba(0,0,0,.25)", overflow:"hidden",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 20px", borderBottom:"1px solid var(--border)" }}>
+          <h2 style={{ fontSize:15, fontWeight:700, color:"var(--text-primary)", margin:0 }}>Import cards from CSV</h2>
+          <button
+            onClick={onClose} aria-label="Close"
+            style={{ background:"none", border:"none", color:"var(--text-muted)", cursor:"pointer", fontSize:18, lineHeight:1, padding:4 }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-primary)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
+          >✕</button>
         </div>
 
-        <div className="p-5 space-y-4">
+        <div style={{ padding:"16px 20px", display:"flex", flexDirection:"column", gap:14 }}>
           {/* Format guide */}
-          <div className="bg-white/5 rounded-xl p-3 border border-white/8">
-            <p className="text-white/60 text-xs font-semibold mb-1.5">Expected CSV columns:</p>
-            <code className="text-[10px] text-white/40 font-mono leading-relaxed block">
+          <div style={{ background:"var(--input-bg)", borderRadius:10, padding:"12px 14px", border:"1px solid var(--border)" }}>
+            <p style={{ fontSize:12, fontWeight:600, color:"var(--text-secondary)", marginBottom:6, marginTop:0 }}>Expected CSV columns:</p>
+            <code style={{ fontSize:11, color:"var(--text-muted)", fontFamily:"monospace", display:"block", lineHeight:1.6 }}>
               title, description, priority, severity, list_name
             </code>
-            <p className="text-white/30 text-[10px] mt-1.5">
+            <p style={{ fontSize:11, color:"var(--text-muted)", marginTop:8, marginBottom:0, lineHeight:1.6 }}>
               • <b>title</b> is required — rows without a title are skipped<br />
               • priority: urgent / high / normal / low (defaults to normal)<br />
               • severity: critical / high / medium / low<br />
@@ -64,28 +72,45 @@ export default function ImportModal({ boardId, onClose, onImported }) {
             </p>
           </div>
 
-          {/* File picker */}
-          <div>
-            <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFile} />
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="w-full py-8 border-2 border-dashed border-white/20 hover:border-[#0f9e8e] rounded-xl text-white/40 hover:text-[#0f9e8e] text-sm transition-colors"
-            >
-              {file ? (
-                <span className="text-white/70">📄 {file.name}</span>
-              ) : (
-                "Click to choose a CSV file"
-              )}
-            </button>
+          {/* File picker — transparent overlay so no programmatic .click() needed */}
+          <div
+            style={{
+              position:"relative", width:"100%", padding:"28px 0",
+              border:"2px dashed var(--border)", borderRadius:10,
+              background:"none", color:"var(--text-muted)",
+              fontSize:13, cursor:"pointer", textAlign:"center",
+              transition:"border-color .12s, color .12s", boxSizing:"border-box",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#6c63ff"; e.currentTarget.style.color = "#6c63ff"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-muted)"; }}
+          >
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".csv"
+              onChange={handleFile}
+              style={{
+                position:"absolute", inset:0,
+                width:"100%", height:"100%",
+                opacity:0, cursor:"pointer", fontSize:0,
+              }}
+            />
+            {file ? (
+              <span style={{ color:"var(--text-secondary)", pointerEvents:"none" }}>📄 {file.name}</span>
+            ) : (
+              <span style={{ pointerEvents:"none" }}>Click to choose a CSV file</span>
+            )}
           </div>
 
           {/* Preview */}
           {preview.length > 0 && (
             <div>
-              <p className="text-white/40 text-xs mb-1.5">Preview (first {preview.length} rows):</p>
-              <div className="bg-[#0d1f1d] rounded-lg p-3 overflow-x-auto">
+              <p style={{ fontSize:11, color:"var(--text-muted)", marginBottom:6, marginTop:0 }}>
+                Preview (first {preview.length} rows):
+              </p>
+              <div style={{ background:"var(--modal-sidebar-bg,var(--input-bg))", borderRadius:8, padding:"10px 12px", overflowX:"auto", border:"1px solid var(--border)" }}>
                 {preview.map((line, i) => (
-                  <p key={i} className={`text-[10px] font-mono truncate ${i === 0 ? "text-white/60 font-semibold" : "text-white/35"}`}>
+                  <p key={i} style={{ fontSize:10, fontFamily:"monospace", margin:"0 0 2px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color: i === 0 ? "var(--text-secondary)" : "var(--text-muted)", fontWeight: i === 0 ? 600 : 400 }}>
                     {line}
                   </p>
                 ))}
@@ -95,29 +120,44 @@ export default function ImportModal({ boardId, onClose, onImported }) {
 
           {/* Result */}
           {result && (
-            <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-3">
-              <p className="text-green-400 text-sm font-medium">✓ Imported {result.imported} card{result.imported !== 1 ? "s" : ""}</p>
+            <div style={{ background:"rgba(97,189,79,0.1)", border:"1px solid rgba(97,189,79,0.3)", borderRadius:10, padding:"10px 14px" }}>
+              <p style={{ color:"#61bd4f", fontSize:13, fontWeight:600, margin:0 }}>
+                ✓ Imported {result.imported} card{result.imported !== 1 ? "s" : ""}
+              </p>
               {result.errors?.length > 0 && (
-                <div className="mt-2 space-y-0.5">
+                <div style={{ marginTop:6 }}>
                   {result.errors.map((e, i) => (
-                    <p key={i} className="text-amber-400 text-[10px]">{e}</p>
+                    <p key={i} style={{ color:"#ff991f", fontSize:10, margin:"2px 0" }}>{e}</p>
                   ))}
                 </div>
               )}
             </div>
           )}
 
-          {err && <p className="text-red-400 text-xs">{err}</p>}
+          {err && <p style={{ color:"#de350b", fontSize:12, margin:0 }}>{err}</p>}
 
-          <div className="flex gap-2">
+          <div style={{ display:"flex", gap:8 }}>
             <button
               onClick={handleImport}
               disabled={!file || importing}
-              className="px-4 py-2 bg-[#0f9e8e] hover:bg-[#0b8b7f] text-white text-sm font-medium rounded-lg disabled:opacity-50 transition-colors"
+              style={{
+                padding:"9px 18px", background:"#6c63ff", color:"#fff",
+                border:"none", borderRadius:8, fontSize:13, fontWeight:600,
+                cursor: !file || importing ? "not-allowed" : "pointer",
+                fontFamily:"inherit", opacity: !file || importing ? 0.5 : 1,
+                transition:"background .12s",
+              }}
+              onMouseEnter={(e) => { if (file && !importing) e.currentTarget.style.background = "#5b52e0"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "#6c63ff"; }}
             >
               {importing ? "Importing…" : "Import cards"}
             </button>
-            <button onClick={onClose} className="px-3 py-2 text-white/40 hover:text-white text-sm transition-colors">
+            <button
+              onClick={onClose}
+              style={{ padding:"9px 14px", background:"none", border:"1px solid var(--border)", borderRadius:8, color:"var(--text-muted)", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--input-bg)"; e.currentTarget.style.color = "var(--text-primary)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = "var(--text-muted)"; }}
+            >
               Close
             </button>
           </div>

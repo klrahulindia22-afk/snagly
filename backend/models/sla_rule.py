@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, BigInteger, Integer, String, Enum, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, Enum, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy.dialects.mysql import BIGINT
 from sqlalchemy.orm import relationship
 from database import Base
 import enum
@@ -18,8 +19,8 @@ class SLARule(Base):
         UniqueConstraint("board_id", "severity", name="uq_sla_board_severity"),
     )
 
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
-    board_id = Column(BigInteger, ForeignKey("boards.id", ondelete="CASCADE"), nullable=False, index=True)
+    id = Column(BIGINT(unsigned=True), primary_key=True, autoincrement=True)
+    board_id = Column(BIGINT(unsigned=True), ForeignKey("boards.id", ondelete="CASCADE"), nullable=False, index=True)
     severity = Column(Enum(SeverityLevel), nullable=False)
     hours_to_resolve = Column(Integer, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)

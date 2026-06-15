@@ -22,6 +22,12 @@ export function formatDueDate(dueDateStr) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
+export function formatCardDate(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
 export function relativeTime(dateStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr);

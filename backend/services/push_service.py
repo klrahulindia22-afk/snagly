@@ -1,8 +1,25 @@
+import re
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 import httpx
 from models.card import Card
 from models.integration import Integration, IntegrationType
 from services.encryption import decrypt_json
+
+# Fix 3: SSRF prevention — validate GitLab base_url before making requests
+_SAFE_URL_RE = re.compile(r'^https://[a-zA-Z0-9][a-zA-Z0-9.\-]+(:\d{1,5})?$')
+_PRIVATE_HOST_RE = re.compile(
+    r'^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[01])\.)',
+    re.IGNORECASE,
+)
+
+
+def _validate_gitlab_base_url(url: str) -> None:
+    if not _SAFE_URL_RE.match(url):
+        raise ValueError(f"Invalid GitLab base URL: {url!r}")
+    hostname = urlparse(url).hostname or ""
+    if _PRIVATE_HOST_RE.match(hostname):
+        raise ValueError(f"GitLab base URL must not target internal hosts: {hostname}")
 
 
 async def push_card(card: Card, integration: Integration) -> tuple:
@@ -107,6 +124,11 @@ async def _push_gitlab(client: httpx.AsyncClient, card: Card, config: dict) -> t
     base_url = config.get("base_url", "https://gitlab.com").rstrip("/")
     if not token or not project_id:
         return None, None, "Missing GitLab token or project_id in config"
+    # Fix 3: reject SSRF — only allow safe https URLs pointing to public hosts
+    try:
+        _validate_gitlab_base_url(base_url)
+    except ValueError as exc:
+        return None, None, str(exc)
 
     description_parts = []
     if card.description:

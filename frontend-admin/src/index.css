@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background-color: #0d1f1d;
+  color: #e2e8f0;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* ── Mobile responsive fixes for admin panel ── */
+* { -webkit-overflow-scrolling: touch; }
+
+@media (max-width: 767px) {
+  /* Make admin tables horizontally scrollable */
+  .admin-table-wrap {
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+
+  .admin-table-wrap table {
+    min-width: 600px;
+  }
+
+  /* Admin shell sidebar — collapse to icon-only on very small screens */
+  aside {
+    min-width: 56px !important;
+  }
+}
+
+/* ── Remap blue-gray Tailwind slate to Snagly green-tinted dark ── */
+.bg-slate-950  { background-color: #020d0c !important; }
+.bg-slate-900  { background-color: #0d1f1d !important; }
+.bg-slate-800  { background-color: #102926 !important; }
+.bg-slate-800\/60 { background-color: rgba(16,41,38,0.6) !important; }
+.bg-slate-700  { background-color: #163530 !important; }
+.bg-slate-600  { background-color: #1a403a !important; }
+
+.border-slate-800  { border-color: rgba(255,255,255,0.08) !important; }
+.border-slate-700  { border-color: rgba(255,255,255,0.10) !important; }
+.border-slate-700\/50 { border-color: rgba(255,255,255,0.07) !important; }
+
+.hover\:bg-slate-700\/30:hover { background-color: rgba(15,158,142,0.07) !important; }
+.hover\:bg-slate-700:hover     { background-color: #163530 !important; }
+.hover\:bg-slate-600:hover     { background-color: #1a403a !important; }
+.hover\:bg-slate-500:hover     { background-color: #204c45 !important; }
+.hover\:bg-slate-800:hover     { background-color: #132e2b !important; }
+
+.focus\:border-accent:focus { border-color: #0f9e8e !important; }
+
+/* modal overlays */
+.bg-slate-800.rounded-2xl { background-color: #102926 !important; }

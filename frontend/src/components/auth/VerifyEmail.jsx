@@ -5,12 +5,12 @@ import useAuthStore from '../../stores/authStore'
 
 const F = "'Segoe UI',-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif"
 const S = {
-  page:  { minHeight:'100vh', background:'linear-gradient(135deg,#0a4a42 0%,#0f9e8e 100%)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:F, padding:16 },
+  page:  { minHeight:'100vh', background:'linear-gradient(135deg,#0a4a42 0%,#6c63ff 100%)', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:F, padding:16 },
   card:  { background:'#fff', borderRadius:8, padding:40, width:'100%', maxWidth:420, boxShadow:'0 8px 32px rgba(9,30,66,.28)', textAlign:'center' },
   icon:  { width:52, height:52, borderRadius:'50%', background:'#e3f2fd', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', fontSize:22 },
   h1:    { fontSize:20, fontWeight:800, color:'#172b4d', marginBottom:8 },
   sub:   { fontSize:13, color:'#5e6c84', lineHeight:1.6, marginBottom:24 },
-  email: { fontWeight:700, color:'#0f9e8e' },
+  email: { fontWeight:700, color:'#6c63ff' },
   box:   { display:'flex', justifyContent:'center', gap:8, marginBottom:16 },
   dig:   { width:44, height:52, border:'2px solid #dfe1e6', borderRadius:4, fontSize:22, fontWeight:700, color:'#172b4d', textAlign:'center', outline:'none', background:'#fafbfc', fontFamily:F },
   err:   { background:'#ffebe6', border:'1px solid #ff8f73', borderRadius:4, padding:'8px 12px', fontSize:13, color:'#de350b', marginBottom:12, textAlign:'left' },
@@ -22,6 +22,7 @@ const S = {
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams()
   const email = searchParams.get('email') || ''
+  const nextPath = searchParams.get('next') || ''
   const navigate = useNavigate()
   const { setAuth } = useAuthStore()
 
@@ -63,7 +64,15 @@ export default function VerifyEmail() {
     try {
       const data = await verifyEmail(email, code)
       setAuth(data.access_token, data.refresh_token, data.user)
-      navigate('/boards')
+      // Priority 1: pending plan from pricing page → upgrade screen pre-selected
+      const pendingPlanId = sessionStorage.getItem('pending_plan_id')
+      if (pendingPlanId) {
+        sessionStorage.removeItem('pending_plan_id')
+        navigate(`/upgrade?plan=${pendingPlanId}`)
+        return
+      }
+      // Priority 2: ?next= param (e.g. share link) → auto-joined board → boards list
+      navigate(nextPath || (data.board_id ? `/board/${data.board_id}` : '/boards'))
     } catch (ex) {
       setErr(ex.response?.data?.detail?.message || ex.response?.data?.detail || 'Invalid or expired code.')
       setDigits(['','','','','',''])
@@ -87,7 +96,7 @@ export default function VerifyEmail() {
     }
   }
 
-  const focusDig = e => { e.target.style.borderColor = '#0f9e8e'; e.target.style.background = '#fff' }
+  const focusDig = e => { e.target.style.borderColor = '#6c63ff'; e.target.style.background = '#fff' }
   const blurDig  = e => { e.target.style.borderColor = '#dfe1e6'; e.target.style.background = '#fafbfc' }
 
   return (
@@ -128,7 +137,7 @@ export default function VerifyEmail() {
           <button
             onClick={handleResend}
             disabled={countdown > 0 || resending}
-            style={{ background:'none', border:'none', cursor: countdown > 0 ? 'not-allowed' : 'pointer', color: countdown > 0 ? '#8993a4' : '#0f9e8e', fontFamily:F, fontSize:13, padding:0 }}
+            style={{ background:'none', border:'none', cursor: countdown > 0 ? 'not-allowed' : 'pointer', color: countdown > 0 ? '#8993a4' : '#6c63ff', fontFamily:F, fontSize:13, padding:0 }}
           >
             {resending ? 'Sending…' : countdown > 0 ? `Resend in ${countdown}s` : 'Resend code'}
           </button>

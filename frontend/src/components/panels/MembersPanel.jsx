@@ -2,76 +2,245 @@ import { useState, useEffect } from "react";
 import { getBoardMembers } from "../../api/boards";
 import { addAssignee, removeAssignee } from "../../api/cards";
 
+function MemberAvatar({ name, color, size = 28 }) {
+  const initials = (name || "?")
+    .split(" ")
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        backgroundColor: color || "#6c63ff",
+        color: "#fff",
+        fontSize: size <= 28 ? 11 : 13,
+        fontWeight: 700,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+        userSelect: "none",
+      }}
+    >
+      {initials}
+    </div>
+  );
+}
+
 export default function MembersPanel({ boardId, cardId, cardAssignees = [], onClose, onCardUpdated }) {
   const [members, setMembers] = useState([]);
   const [search, setSearch] = useState("");
-
-  const assignedIds = new Set((cardAssignees || []).map((a) => a.user_id));
+  const [loading, setLoading] = useState({});
 
   useEffect(() => {
     getBoardMembers(boardId).then((r) => setMembers(r.data || []));
   }, [boardId]);
 
-  const filtered = members.filter((m) =>
-    !search || m.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-    m.email?.toLowerCase().includes(search.toLowerCase())
+  // Build a map of assigned members by user_id for quick lookup
+  const assignedMap = {};
+  (cardAssignees || []).forEach((a) => {
+    assignedMap[a.user_id] = a;
+  });
+  const assignedIds = new Set(Object.keys(assignedMap).map(Number));
+
+  const matchesSearch = (m) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      m.full_name?.toLowerCase().includes(q) ||
+      m.email?.toLowerCase().includes(q)
+    );
+  };
+
+  // Card members = board members who are also card assignees, filtered by search
+  const cardMembers = members.filter(
+    (m) => assignedIds.has(m.user_id) && matchesSearch(m)
   );
 
-  const toggle = async (member) => {
-    if (assignedIds.has(member.user_id)) {
-      await removeAssignee(cardId, member.user_id);
-    } else {
-      await addAssignee(cardId, member.user_id);
+  // Board members = those NOT yet assigned, filtered by search
+  const boardMembers = members.filter(
+    (m) => !assignedIds.has(m.user_id) && matchesSearch(m)
+  );
+
+  const toggle = async (member, isAssigned) => {
+    setLoading((p) => ({ ...p, [member.user_id]: true }));
+    try {
+      if (isAssigned) {
+        await removeAssignee(cardId, member.user_id);
+      } else {
+        await addAssignee(cardId, member.user_id);
+      }
+      onCardUpdated?.();
+    } finally {
+      setLoading((p) => ({ ...p, [member.user_id]: false }));
     }
-    onCardUpdated?.();
+  };
+
+  const sectionLabel = {
+    fontSize: 11,
+    fontWeight: 700,
+    color: "var(--text-muted)",
+    textTransform: "uppercase",
+    letterSpacing: "0.5px",
+    padding: "6px 4px 4px",
   };
 
   return (
-    <div className="w-64 bg-[#1e2435] border border-white/10 rounded-xl shadow-2xl p-3">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-white text-xs font-semibold">Members</h3>
-        <button onClick={onClose} className="text-white/40 hover:text-white text-xs">✕</button>
+    <div
+      style={{
+        width: 264,
+        background: "var(--modal-bg)",
+        border: "1px solid var(--border)",
+        borderRadius: 8,
+        boxShadow: "0 8px 32px rgba(0,0,0,.18)",
+        padding: "12px 10px",
+      }}
+    >
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+        <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>Members</h3>
+        <button
+          onClick={onClose}
+          style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 16, lineHeight: 1, padding: "0 2px" }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-primary)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
+        >✕</button>
       </div>
 
+      {/* Search */}
       <input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search members…"
-        className="w-full bg-white/10 border border-white/20 rounded px-2 py-1.5 text-white text-xs placeholder-white/30 focus:outline-none focus:border-[#0f9e8e] mb-2"
+        placeholder="Search members"
+        autoFocus
+        style={{
+          width: "100%",
+          background: "var(--input-bg)",
+          border: "1px solid var(--border)",
+          borderRadius: 6,
+          padding: "7px 10px",
+          color: "var(--text-primary)",
+          fontSize: 13,
+          outline: "none",
+          boxSizing: "border-box",
+          marginBottom: 8,
+          fontFamily: "inherit",
+        }}
+        onFocus={(e) => { e.target.style.borderColor = "#6c63ff"; }}
+        onBlur={(e) => { e.target.style.borderColor = "var(--border)"; }}
       />
 
-      <div className="space-y-1 max-h-60 overflow-y-auto">
-        {filtered.map((member) => {
-          const isAssigned = assignedIds.has(member.user_id);
-          const initials = member.full_name.slice(0, 2).toUpperCase();
-          return (
-            <button
-              key={member.user_id}
-              onClick={() => toggle(member)}
-              className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors ${
-                isAssigned ? "bg-white/15" : "hover:bg-white/10"
-              }`}
-            >
+      <div style={{ maxHeight: 300, overflowY: "auto" }}>
+
+        {/* Card members section */}
+        {cardMembers.length > 0 && (
+          <>
+            <p style={sectionLabel}>Card members</p>
+            {cardMembers.map((member) => (
               <div
-                className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-semibold text-white shrink-0"
-                style={{ backgroundColor: member.initials_color || "#0f9e8e" }}
+                key={member.user_id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "5px 6px",
+                  borderRadius: 6,
+                  background: "var(--input-bg-hover, #f4f5f7)",
+                  marginBottom: 2,
+                }}
               >
-                {initials}
+                <MemberAvatar name={member.full_name} color={member.initials_color} />
+                <span
+                  style={{
+                    flex: 1,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: "var(--text-primary)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {member.full_name}
+                </span>
+                <button
+                  onClick={() => toggle(member, true)}
+                  disabled={loading[member.user_id]}
+                  title="Remove from card"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: loading[member.user_id] ? "not-allowed" : "pointer",
+                    color: "var(--text-muted)",
+                    fontSize: 15,
+                    lineHeight: 1,
+                    padding: "0 2px",
+                    flexShrink: 0,
+                    opacity: loading[member.user_id] ? 0.4 : 1,
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = "#dc2626"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
+                >✕</button>
               </div>
-              <div className="flex-1 text-left min-w-0">
-                <p className="text-white text-xs font-medium truncate">{member.full_name}</p>
-                <p className="text-white/40 text-[10px] truncate">{member.role}</p>
-              </div>
-              {isAssigned && (
-                <svg className="w-3.5 h-3.5 text-[#0f9e8e] shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-              )}
-            </button>
-          );
-        })}
-        {filtered.length === 0 && (
-          <p className="text-white/30 text-xs px-1 py-2">No members found</p>
+            ))}
+          </>
+        )}
+
+        {/* Board members section */}
+        {boardMembers.length > 0 && (
+          <>
+            <p style={{ ...sectionLabel, marginTop: cardMembers.length > 0 ? 6 : 0 }}>Board members</p>
+            {boardMembers.map((member) => (
+              <button
+                key={member.user_id}
+                onClick={() => toggle(member, false)}
+                disabled={loading[member.user_id]}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "5px 6px",
+                  borderRadius: 6,
+                  border: "none",
+                  cursor: loading[member.user_id] ? "not-allowed" : "pointer",
+                  fontFamily: "inherit",
+                  textAlign: "left",
+                  background: "none",
+                  marginBottom: 2,
+                  opacity: loading[member.user_id] ? 0.5 : 1,
+                  transition: "background 0.1s",
+                }}
+                onMouseEnter={(e) => { if (!loading[member.user_id]) e.currentTarget.style.background = "var(--input-bg, #f4f5f7)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+              >
+                <MemberAvatar name={member.full_name} color={member.initials_color} />
+                <span
+                  style={{
+                    flex: 1,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: "var(--text-primary)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {member.full_name}
+                </span>
+              </button>
+            ))}
+          </>
+        )}
+
+        {cardMembers.length === 0 && boardMembers.length === 0 && (
+          <p style={{ fontSize: 12, color: "var(--text-muted)", padding: "8px 4px" }}>
+            {search ? "No members found" : "No board members"}
+          </p>
         )}
       </div>
     </div>

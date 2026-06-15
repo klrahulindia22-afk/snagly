@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { getGlobalDashboard } from "../../api/dashboard";
+import { usePlanLimits } from "../../hooks/usePlanLimits";
 import StatCard from "./StatCard";
 import DonutChart from "./DonutChart";
 import BarChart from "./BarChart";
 import TrendLine from "./TrendLine";
+import { SkeletonStatCard, SkeletonChartCard } from "../ui/Loader";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
@@ -37,7 +39,7 @@ function exportCSV(data) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "bugtrack-global-report.csv";
+  a.download = "snagly-global-report.csv";
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -45,18 +47,26 @@ function exportCSV(data) {
 async function exportPDF(contentRef) {
   const el = contentRef.current;
   if (!el) return;
-  const canvas = await html2canvas(el, { backgroundColor: "#0d1f1d", scale: 1.5 });
+  const canvas = await html2canvas(el, { scale: 1.5 });
   const imgData = canvas.toDataURL("image/png");
   const pdf = new jsPDF({ orientation: "landscape", unit: "px", format: [canvas.width / 1.5, canvas.height / 1.5] });
   pdf.addImage(imgData, "PNG", 0, 0, canvas.width / 1.5, canvas.height / 1.5);
-  pdf.save("bugtrack-global-report.pdf");
+  pdf.save("snagly-global-report.pdf");
 }
 
 const TREND_OPTIONS = [7, 14, 30, 90];
 const SEV_OPTIONS = ["", "critical", "high", "medium", "low"];
 const PRI_OPTIONS = ["", "urgent", "high", "normal", "low"];
 
+const selectStyle = {
+  background:"var(--input-bg)", border:"1px solid var(--border)", color:"var(--text-secondary)",
+  fontSize:12, borderRadius:8, padding:"6px 12px", outline:"none", cursor:"pointer",
+  fontFamily:"inherit",
+};
+
 export default function GlobalDash() {
+  const navigate = useNavigate();
+  const { isFeatureEnabled, loaded: planLoaded } = usePlanLimits();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -89,9 +99,26 @@ export default function GlobalDash() {
   };
 
   if (error) return (
-    <div className="min-h-screen bg-[#0d1f1d] flex items-center justify-center text-red-400">{error}</div>
+    <div style={{ flex:1, background:"var(--input-bg)", display:"flex", alignItems:"center", justifyContent:"center", color:"#de350b" }}>{error}</div>
   );
 
+  if (planLoaded && !isFeatureEnabled('full_dashboard')) {
+    return (
+      <div style={{ flex:1, background:"var(--input-bg)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
+        <div style={{ fontSize:48 }}>📊</div>
+        <h2 style={{ color:"var(--text-primary)", margin:0 }}>Global Reports</h2>
+        <p style={{ color:"var(--text-muted)", fontSize:14, margin:0 }}>Cross-board analytics are available on the Enterprise plan.</p>
+        <button
+          onClick={() => navigate('/upgrade?reason=full_dashboard')}
+          style={{ padding:"10px 24px", borderRadius:8, background:"#6c63ff", color:"#fff", border:"none", fontSize:14, fontWeight:600, cursor:"pointer" }}>
+          ⚡ Upgrade to unlock
+        </button>
+        <Link to="/boards" style={{ color:"var(--text-muted)", fontSize:13 }}>← Back to boards</Link>
+      </div>
+    );
+  }
+
+  const canExport = isFeatureEnabled('csv_pdf_export');
   const stats = data?.stats || {};
 
   const severityPerBoard = (data?.severity_per_board || []).map((r) => ({
@@ -105,24 +132,31 @@ export default function GlobalDash() {
   }));
 
   return (
-    <div className="min-h-screen bg-[#0d1f1d] text-white">
+    <div style={{ flex:1, overflowY:"auto", background:"var(--input-bg)" }}>
       {/* Header */}
-      <div className="border-b border-white/10 px-6 py-4 flex items-center gap-4">
-        <Link to="/boards" className="text-white/40 hover:text-white text-xs flex items-center gap-1 transition-colors">
+      <div style={{ borderBottom:"1px solid var(--border)", padding:"12px 24px", display:"flex", alignItems:"center", gap:10, background:"var(--modal-bg)" }}>
+        <Link
+          to="/boards"
+          style={{ color:"var(--text-muted)", fontSize:12, textDecoration:"none", display:"flex", alignItems:"center", gap:4 }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-primary)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
+        >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
           My Boards
         </Link>
-        <span className="text-white/15">/</span>
-        <span className="text-white font-semibold text-sm">Global Reports</span>
+        <span style={{ color:"var(--border)", fontSize:14 }}>/</span>
+        <span style={{ color:"var(--text-primary)", fontWeight:600, fontSize:14 }}>Global Reports</span>
       </div>
 
-      <div ref={contentRef} className="px-6 py-6 space-y-6 max-w-[1400px] mx-auto">
+      <div ref={contentRef} className="dash-content" style={{ padding:"24px", maxWidth:1400, margin:"0 auto", display:"flex", flexDirection:"column", gap:24 }}>
         {/* Filter bar */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div style={{ display:"flex", flexWrap:"wrap", alignItems:"center", gap:10 }}>
           <select
             value={filters.severity}
             onChange={(e) => setFilters((p) => ({ ...p, severity: e.target.value }))}
-            className="bg-[#1e2435] border border-white/15 text-white/70 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#0f9e8e]"
+            style={selectStyle}
+            onFocus={(e) => { e.target.style.borderColor = "#6c63ff"; }}
+            onBlur={(e) => { e.target.style.borderColor = "var(--border)"; }}
           >
             <option value="">All severities</option>
             {SEV_OPTIONS.filter(Boolean).map((s) => <option key={s} value={s}>{s}</option>)}
@@ -130,68 +164,90 @@ export default function GlobalDash() {
           <select
             value={filters.priority}
             onChange={(e) => setFilters((p) => ({ ...p, priority: e.target.value }))}
-            className="bg-[#1e2435] border border-white/15 text-white/70 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#0f9e8e]"
+            style={selectStyle}
+            onFocus={(e) => { e.target.style.borderColor = "#6c63ff"; }}
+            onBlur={(e) => { e.target.style.borderColor = "var(--border)"; }}
           >
             <option value="">All priorities</option>
             {PRI_OPTIONS.filter(Boolean).map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
-          <div className="flex items-center gap-1 ml-auto">
+
+          <div style={{ display:"flex", alignItems:"center", gap:4, marginLeft:"auto" }}>
             {TREND_OPTIONS.map((d) => (
               <button
                 key={d}
                 onClick={() => setTrendDays(d)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-                  trendDays === d
-                    ? "bg-[#0f9e8e] text-white"
-                    : "bg-white/8 text-white/40 hover:text-white"
-                }`}
+                style={{
+                  padding:"4px 10px", borderRadius:8, border:"none", cursor:"pointer",
+                  fontSize:12, fontWeight:500, fontFamily:"inherit", transition:"all .15s",
+                  background: trendDays === d ? "#6c63ff" : "var(--input-bg)",
+                  color: trendDays === d ? "#fff" : "var(--text-muted)",
+                }}
+                onMouseEnter={(e) => { if (trendDays !== d) { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.color = "var(--text-primary)"; } }}
+                onMouseLeave={(e) => { if (trendDays !== d) { e.currentTarget.style.background = "var(--input-bg)"; e.currentTarget.style.color = "var(--text-muted)"; } }}
               >
                 {d}d
               </button>
             ))}
           </div>
+
           <button
-            onClick={() => exportCSV(data)}
-            className="px-3 py-1.5 rounded-lg bg-white/8 hover:bg-white/15 text-white/50 hover:text-white text-xs font-medium transition-colors flex items-center gap-1.5"
+            onClick={() => canExport ? exportCSV(data) : navigate('/upgrade?reason=csv_pdf_export')}
+            style={{ padding:"6px 12px", borderRadius:8, background:"var(--input-bg)", border:"none", color: canExport ? "var(--text-muted)" : "#6c63ff", fontSize:12, fontWeight:500, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:6, transition:"all .15s", opacity: canExport ? 1 : 0.75 }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.color = canExport ? "var(--text-primary)" : "#6c63ff"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "var(--input-bg)"; e.currentTarget.style.color = canExport ? "var(--text-muted)" : "#6c63ff"; }}
+            title={canExport ? "Export CSV" : "Upgrade to export"}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            CSV
+            CSV {!canExport && <span style={{ fontSize:10 }}>↑</span>}
           </button>
           <button
-            onClick={handlePDF}
+            onClick={() => { if (!canExport) { navigate('/upgrade?reason=csv_pdf_export'); return; } handlePDF(); }}
             disabled={exporting}
-            className="px-3 py-1.5 rounded-lg bg-white/8 hover:bg-white/15 text-white/50 hover:text-white text-xs font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50"
+            style={{ padding:"6px 12px", borderRadius:8, background:"var(--input-bg)", border:"none", color: canExport ? "var(--text-muted)" : "#6c63ff", fontSize:12, fontWeight:500, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:6, transition:"all .15s", opacity:exporting?0.5:(canExport?1:0.75) }}
+            onMouseEnter={(e) => { if (!exporting) { e.currentTarget.style.background = "var(--border)"; e.currentTarget.style.color = canExport ? "var(--text-primary)" : "#6c63ff"; } }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "var(--input-bg)"; e.currentTarget.style.color = canExport ? "var(--text-muted)" : "#6c63ff"; }}
+            title={canExport ? "Export PDF" : "Upgrade to export"}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            {exporting ? "Exporting…" : "PDF"}
+            {exporting ? "Exporting…" : <>PDF {!canExport && <span style={{ fontSize:10 }}>↑</span>}</>}
           </button>
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center h-60 text-white/30 text-sm">Loading…</div>
+          <>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(160px, 1fr))", gap:16 }}>
+              {Array.from({ length: 6 }).map((_, i) => <SkeletonStatCard key={i} />)}
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(480px, 1fr))", gap:16 }}>
+              <SkeletonChartCard height={200} />
+              <SkeletonChartCard height={200} />
+            </div>
+            <SkeletonChartCard height={200} />
+          </>
         ) : (
           <>
             {/* Stat cards */}
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(160px, 1fr))", gap:16 }}>
               <StatCard label="Total boards" value={stats.total_boards} icon="📋" />
-              <StatCard label="Total open bugs" value={stats.total_open_bugs} icon="🐛" accent="#0f9e8e" />
+              <StatCard label="Total open bugs" value={stats.total_open_bugs} icon="🐛" accent="#6c63ff" />
               <StatCard label="Critical open" value={stats.critical_bugs_open} icon="🔴" accent={stats.critical_bugs_open > 0 ? "#de350b" : undefined} />
               <StatCard label="Overdue" value={stats.overdue_bugs} icon="⏰" accent={stats.overdue_bugs > 0 ? "#de350b" : undefined} />
               <StatCard label="Resolved / week" value={stats.resolved_this_week} icon="✅" accent="#61bd4f" />
               <StatCard
                 label="Most active board"
-                value={stats.most_active_board?.name ? null : null}
+                value={null}
                 sub={stats.most_active_board?.name || "No activity this week"}
                 icon="🏆"
               />
             </div>
 
             {/* Bugs per board + trend */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(480px, 1fr))", gap:16 }}>
               <BarChart
                 data={data.bugs_per_board}
                 nameKey="board_name"
-                bars={[{ dataKey: "count", name: "Open Bugs", color: "#0f9e8e" }]}
+                bars={[{ dataKey: "count", name: "Open Bugs", color: "#6c63ff" }]}
                 title="Bugs per board"
               />
               <TrendLine data={data.trend} title={`Global trend — last ${trendDays} days`} />
@@ -226,7 +282,7 @@ export default function GlobalDash() {
             )}
 
             {/* Top assignees + label usage */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(480px, 1fr))", gap:16 }}>
               <BarChart
                 data={data.top_assignees}
                 nameKey="full_name"

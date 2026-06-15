@@ -1,15 +1,21 @@
 import json
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Request
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, func
+from sqlalchemy import select, update, func, or_
 from jose import JWTError
 from database import get_db
+
+logger = logging.getLogger(__name__)
 from config import settings
 from models.user import User
 from models.login_attempt import LoginAttempt
+from models.invite import Invite
+from models.board_membership import BoardMembership
+from models.board_activity_log import BoardActivityLog
 from schemas.auth import (
     LoginRequest, RefreshRequest,
     ForgotPasswordRequest, ResetPasswordRequest, UserOut,
@@ -17,11 +23,12 @@ from schemas.auth import (
 from services.auth_service import (
     verify_password, hash_password,
     create_access_token, create_refresh_token,
-    decode_token, generate_reset_token,
+    decode_token, generate_reset_token, generate_refresh_jti,
     generate_otp, hash_otp, verify_otp,
     generate_totp_secret, totp_provisioning_uri,
     verify_totp, encrypt_totp_secret, decrypt_totp_secret,
     generate_backup_codes, hash_backup_codes, verify_and_consume_backup_code,
+    random_avatar_color,
 )
 from services.email_service import (
     send_password_reset_email,
@@ -29,17 +36,34 @@ from services.email_service import (
     send_otp_2fa_email,
     send_account_locked_email,
 )
-from middleware.auth import get_current_user
+from middleware.auth import get_current_user, get_pre_auth_user, get_user_for_2fa_setup
+from models.plan import Plan, PlanFeatureFlag
+from models.subscription import Subscription
 import os, shutil, uuid
 
 
-# ── Helper ────────────────────────────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _client_ip(request: Optional[Request]) -> Optional[str]:
     if request is None:
         return None
     forwarded = request.headers.get("X-Forwarded-For")
     return forwarded.split(",")[0].strip() if forwarded else request.client.host
+
+
+async def _plan_requires_2fa(user_id: int, db: AsyncSession) -> bool:
+    """Return True if the user's subscription plan has 2fa_enforcement enabled."""
+    sub = await db.scalar(select(Subscription).where(Subscription.user_id == user_id))
+    plan = await db.get(Plan, sub.plan_id) if sub else await db.scalar(select(Plan).where(Plan.name == "free"))
+    if not plan:
+        return False
+    flag = await db.scalar(
+        select(PlanFeatureFlag).where(
+            PlanFeatureFlag.plan_id == plan.id,
+            PlanFeatureFlag.feature_key == "2fa_enforcement",
+        )
+    )
+    return bool(flag and flag.is_enabled)
 
 
 async def _record_attempt(db: AsyncSession, email: str, success: bool, ip: Optional[str]) -> None:
@@ -78,8 +102,8 @@ async def _maybe_lock(db: AsyncSession, user: User, ip: Optional[str]) -> None:
         await db.commit()
         try:
             await send_account_locked_email(user.email, user.full_name, settings.LOGIN_LOCKOUT_MINUTES)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error("Email send failed (account locked): %s", e)
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Too many failed attempts. Account locked for {settings.LOGIN_LOCKOUT_MINUTES} minutes.",
@@ -102,9 +126,11 @@ class SignupRequest(BaseModel):
 
     @field_validator("password")
     @classmethod
-    def pw_len(cls, v: str) -> str:
+    def pw_strength(cls, v: str) -> str:
         if len(v) < 8:
             raise ValueError("Password must be at least 8 characters")
+        if not any(c.isupper() for c in v):
+            raise ValueError("Password must contain at least one uppercase letter")
         return v
 
 
@@ -126,9 +152,13 @@ class Confirm2FARequest(BaseModel):
 
 
 class Login2FARequest(BaseModel):
-    email: EmailStr
+    # Fix 1+2: email removed — user identity comes from the pre_auth Bearer token
     method: str          # "totp" | "email_otp" | "backup_code"
     code: str
+
+
+class RegenerateBackupCodesRequest(BaseModel):
+    totp_code: str
 
 
 class UpdateProfileRequest(BaseModel):
@@ -175,6 +205,7 @@ async def signup(body: SignupRequest, db: AsyncSession = Depends(get_db)):
         email_otp_hash=otp_hash,
         email_otp_expires_at=otp_expires,
         email_otp_attempts=0,
+        initials_color=random_avatar_color(),
     )
     db.add(user)
     await db.commit()
@@ -182,8 +213,8 @@ async def signup(body: SignupRequest, db: AsyncSession = Depends(get_db)):
 
     try:
         await send_otp_verify_email(user.email, user.full_name, otp)
-    except Exception:
-        pass  # never block signup on email failure
+    except Exception as e:
+        logger.error("Email send failed (signup OTP): %s", e)
 
     return {"data": {"message": "Account created. Check your email for the verification code.", "email": user.email}}
 
@@ -196,26 +227,33 @@ async def verify_email(body: VerifyEmailRequest, db: AsyncSession = Depends(get_
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     if user.is_verified:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already verified")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "ALREADY_VERIFIED", "message": "Email already verified."},
+        )
 
-    # Check OTP expiry
     if not user.email_otp_hash or not user.email_otp_expires_at:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No pending OTP. Request a new one.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "NO_OTP", "message": "No pending OTP. Request a new one."},
+        )
 
     expires = user.email_otp_expires_at
     if expires.tzinfo is None:
         expires = expires.replace(tzinfo=timezone.utc)
     if expires < datetime.now(timezone.utc):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OTP has expired. Request a new one.")
-
-    # Check attempt count
-    if user.email_otp_attempts >= settings.OTP_MAX_ATTEMPTS:
         raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many incorrect attempts. Request a new OTP.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "OTP_EXPIRED", "message": "OTP has expired. Request a new one."},
         )
 
-    # Increment attempts first (prevents timing oracle)
+    if user.email_otp_attempts >= settings.OTP_MAX_ATTEMPTS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "OTP_LOCKED", "message": "Too many incorrect attempts. Request a new OTP."},
+        )
+
+    # Increment attempts before checking (prevents timing oracle)
     await db.execute(
         update(User).where(User.id == user.id)
         .values(email_otp_attempts=User.email_otp_attempts + 1)
@@ -223,28 +261,76 @@ async def verify_email(body: VerifyEmailRequest, db: AsyncSession = Depends(get_
     await db.commit()
 
     if not verify_otp(body.otp.strip(), user.email_otp_hash):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect verification code.")
+        attempts_used = (user.email_otp_attempts or 0) + 1
+        remaining = max(0, settings.OTP_MAX_ATTEMPTS - attempts_used)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "INVALID_OTP", "message": "Incorrect verification code.", "attempts_remaining": remaining},
+        )
 
-    # Activate account
+    jti = generate_refresh_jti()
     await db.execute(
         update(User).where(User.id == user.id).values(
             is_verified=True,
             email_otp_hash=None,
             email_otp_expires_at=None,
             email_otp_attempts=0,
+            current_refresh_jti=jti,
         )
     )
     await db.commit()
     await db.refresh(user)
 
+    # Auto-accept any pending board invites for this email so the board
+    # appears immediately if the user signed up via the regular form instead
+    # of the invite-accept page.
+    pending_invites = (await db.execute(
+        select(Invite).where(
+            Invite.email == str(user.email),
+            Invite.accepted_at == None,  # noqa: E711
+            Invite.is_cancelled == False,
+            Invite.expires_at > datetime.now(timezone.utc),
+        )
+    )).scalars().all()
+
+    for inv in pending_invites:
+        if inv.board_id:
+            existing_m = await db.scalar(
+                select(BoardMembership).where(
+                    BoardMembership.board_id == inv.board_id,
+                    BoardMembership.user_id == user.id,
+                )
+            )
+            if not existing_m:
+                db.add(BoardMembership(board_id=inv.board_id, user_id=user.id, role=inv.role))
+                db.add(BoardActivityLog(
+                    board_id=inv.board_id, user_id=user.id,
+                    action="member.joined",
+                    detail=f"{user.email} joined via invite",
+                ))
+        await db.execute(
+            update(Invite).where(Invite.id == inv.id)
+            .values(accepted_at=datetime.now(timezone.utc))
+        )
+
+    if pending_invites:
+        await db.commit()
+
+    # Build the first_board_id so the frontend can redirect straight to the board
+    first_board_id = next(
+        (inv.board_id for inv in pending_invites if inv.board_id),
+        None
+    )
+
     access_token = create_access_token({"sub": str(user.id)})
-    refresh_token = create_refresh_token({"sub": str(user.id)})
+    refresh_token = create_refresh_token({"sub": str(user.id), "jti": jti})
     return {
         "data": {
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "bearer",
             "user": UserOut.model_validate(user).model_dump(),
+            "board_id": first_board_id,
         }
     }
 
@@ -254,14 +340,26 @@ async def verify_email(body: VerifyEmailRequest, db: AsyncSession = Depends(get_
 @router.post("/resend-otp")
 async def resend_otp(body: ResendOtpRequest, db: AsyncSession = Depends(get_db)):
     user = await db.scalar(select(User).where(User.email == body.email, User.is_deleted == False))
-    if not user or user.is_verified:
-        # Always return OK — prevents enumeration
+    if not user:
         return {"data": {"message": "If a pending account exists, a new code has been sent."}}
+    if user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "ALREADY_VERIFIED", "message": "This email address is already verified."},
+        )
 
-    # Rate-limit: count resends in the last hour
-    one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
-    # We approximate using email_otp_expires_at resets: just always allow for MVP simplicity
-    # A more precise approach would log resend events separately
+    # Fix 13: enforce a 60-second cooldown between resends using the OTP issue time
+    if user.email_otp_expires_at:
+        issue_time = user.email_otp_expires_at - timedelta(minutes=settings.OTP_EXPIRE_MINUTES)
+        if issue_time.tzinfo is None:
+            issue_time = issue_time.replace(tzinfo=timezone.utc)
+        cooldown_end = issue_time + timedelta(seconds=60)
+        if cooldown_end > datetime.now(timezone.utc):
+            remaining_s = int((cooldown_end - datetime.now(timezone.utc)).total_seconds()) + 1
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail={"code": "COOLDOWN", "message": "Please wait before requesting another code.", "retry_after": remaining_s},
+            )
 
     otp = generate_otp()
     otp_hash = hash_otp(otp)
@@ -278,8 +376,8 @@ async def resend_otp(body: ResendOtpRequest, db: AsyncSession = Depends(get_db))
 
     try:
         await send_otp_verify_email(user.email, user.full_name, otp)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error("Email send failed (resend OTP): %s", e)
 
     return {"data": {"message": "If a pending account exists, a new code has been sent."}}
 
@@ -321,8 +419,12 @@ async def login(body: LoginRequest, request: Request, db: AsyncSession = Depends
         pre_auth = create_access_token({"sub": str(user.id), "scope": "pre_2fa"})
         return {"data": {"requires_2fa": True, "pre_auth_token": pre_auth}}
 
+    jti = generate_refresh_jti()
+    await db.execute(update(User).where(User.id == user.id).values(current_refresh_jti=jti))
+    await db.commit()
+    await db.refresh(user)
     access_token = create_access_token({"sub": str(user.id)})
-    refresh_token = create_refresh_token({"sub": str(user.id)})
+    refresh_token = create_refresh_token({"sub": str(user.id), "jti": jti})
     return {
         "data": {
             "requires_2fa": False,
@@ -338,20 +440,25 @@ async def login(body: LoginRequest, request: Request, db: AsyncSession = Depends
 
 @router.post("/setup-2fa")
 async def setup_2fa(current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    if current_user.two_fa_enabled:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="2FA is already enabled")
+    try:
+        if current_user.two_fa_enabled:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="2FA is already enabled")
 
-    secret = generate_totp_secret()
-    uri = totp_provisioning_uri(secret, current_user.email)
+        secret = generate_totp_secret()
+        uri = totp_provisioning_uri(secret, current_user.email)
 
-    # Store encrypted secret tentatively — confirmed in confirm-2fa
-    await db.execute(
-        update(User).where(User.id == current_user.id)
-        .values(totp_secret_encrypted=encrypt_totp_secret(secret))
-    )
-    await db.commit()
+        await db.execute(
+            update(User).where(User.id == current_user.id)
+            .values(totp_secret_encrypted=encrypt_totp_secret(secret))
+        )
+        await db.commit()
 
-    return {"data": {"totp_uri": uri, "secret": secret}}
+        return {"data": {"totp_uri": uri}}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("setup_2fa error for user %s: %s", current_user.id, e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"2FA setup failed: {type(e).__name__}: {e}")
 
 
 # ── 2FA confirm ───────────────────────────────────────────────────────────────
@@ -386,11 +493,12 @@ async def confirm_2fa(
 # ── 2FA login challenge ───────────────────────────────────────────────────────
 
 @router.post("/login-2fa")
-async def login_2fa(body: Login2FARequest, db: AsyncSession = Depends(get_db)):
-    user = await db.scalar(select(User).where(User.email == body.email, User.is_deleted == False))
-    if not user or not user.two_fa_enabled:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="2FA not applicable for this account")
-
+async def login_2fa(
+    body: Login2FARequest,
+    # Fix 1+2: user identity from pre_auth Bearer token — cannot be spoofed with email
+    user: User = Depends(get_pre_auth_user),
+    db: AsyncSession = Depends(get_db),
+):
     verified = False
 
     if body.method == "totp":
@@ -407,9 +515,18 @@ async def login_2fa(body: Login2FARequest, db: AsyncSession = Depends(get_db)):
             expires = expires.replace(tzinfo=timezone.utc)
         if expires < datetime.now(timezone.utc):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email OTP expired")
+        # Fix 6: enforce attempt limit before checking (prevents brute-force)
+        if (user.email_otp_attempts or 0) >= settings.OTP_MAX_ATTEMPTS:
+            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many incorrect attempts. Request a new OTP.")
+        await db.execute(
+            update(User).where(User.id == user.id)
+            .values(email_otp_attempts=User.email_otp_attempts + 1)
+        )
         verified = verify_otp(body.code.strip(), user.email_otp_hash)
         if verified:
-            await db.execute(update(User).where(User.id == user.id).values(email_otp_hash=None, email_otp_expires_at=None, email_otp_attempts=0))
+            await db.execute(update(User).where(User.id == user.id).values(
+                email_otp_hash=None, email_otp_expires_at=None, email_otp_attempts=0,
+            ))
 
     elif body.method == "backup_code":
         if not user.backup_codes_hash:
@@ -428,8 +545,12 @@ async def login_2fa(body: Login2FARequest, db: AsyncSession = Depends(get_db)):
     await db.commit()
     await db.refresh(user)
 
+    jti = generate_refresh_jti()
+    await db.execute(update(User).where(User.id == user.id).values(current_refresh_jti=jti))
+    await db.commit()
+    await db.refresh(user)
     access_token = create_access_token({"sub": str(user.id)})
-    refresh_token = create_refresh_token({"sub": str(user.id)})
+    refresh_token = create_refresh_token({"sub": str(user.id), "jti": jti})
     return {
         "data": {
             "access_token": access_token,
@@ -463,8 +584,8 @@ async def request_2fa_otp(body: ResendOtpRequest, db: AsyncSession = Depends(get
 
     try:
         await send_otp_2fa_email(user.email, user.full_name, otp)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error("Email send failed (2FA OTP): %s", e)
 
     return {"data": {"message": "If applicable, a code has been sent."}}
 
@@ -489,6 +610,34 @@ async def disable_2fa(
     return {"data": {"message": "2FA disabled."}}
 
 
+# ── Regenerate backup codes ───────────────────────────────────────────────────
+
+@router.post("/regenerate-backup-codes")
+async def regenerate_backup_codes(
+    body: RegenerateBackupCodesRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if not current_user.two_fa_enabled:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="2FA is not enabled")
+    if not current_user.totp_secret_encrypted:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="TOTP not configured")
+
+    # Require a valid TOTP code to prevent account takeover
+    secret = decrypt_totp_secret(current_user.totp_secret_encrypted)
+    if not verify_totp(secret, body.totp_code):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid authenticator code")
+
+    codes = generate_backup_codes()
+    await db.execute(
+        update(User).where(User.id == current_user.id).values(
+            backup_codes_hash=hash_backup_codes(codes)
+        )
+    )
+    await db.commit()
+    return {"data": {"backup_codes": codes}}
+
+
 # ── Standard auth endpoints ───────────────────────────────────────────────────
 
 @router.post("/refresh")
@@ -507,8 +656,28 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
+    # Fix 12: also invalidate refresh tokens issued before a password change
+    iat = payload.get("iat")
+    if iat and user.password_changed_at:
+        pca = user.password_changed_at
+        if pca.tzinfo is None:
+            pca = pca.replace(tzinfo=timezone.utc)
+        if iat < pca.timestamp():
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired. Please log in again.")
+
+    # Single-use: reject if JTI doesn't match the stored one
+    token_jti = payload.get("jti")
+    if token_jti != user.current_refresh_jti:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token already used or invalid")
+
+    # Rotate: issue new JTI
+    new_jti = generate_refresh_jti()
+    await db.execute(update(User).where(User.id == user.id).values(current_refresh_jti=new_jti))
+    await db.commit()
+
     access_token = create_access_token({"sub": str(user.id)})
-    return {"data": {"access_token": access_token, "token_type": "bearer"}}
+    new_refresh_token = create_refresh_token({"sub": str(user.id), "jti": new_jti})
+    return {"data": {"access_token": access_token, "refresh_token": new_refresh_token, "token_type": "bearer"}}
 
 
 @router.post("/forgot-password")
@@ -524,7 +693,11 @@ async def forgot_password(body: ForgotPasswordRequest, db: AsyncSession = Depend
             )
         )
         await db.commit()
-        await send_password_reset_email(user.email, user.full_name, token)
+        # Fix 14: SMTP failure must never reveal whether the email exists
+        try:
+            await send_password_reset_email(user.email, user.full_name, token, base_url=body.frontend_url)
+        except Exception as e:
+            logger.error("Email send failed (password reset): %s", e)
     return {"data": {"message": "If that email exists, a reset link has been sent."}}
 
 
@@ -551,6 +724,47 @@ async def reset_password(body: ResetPasswordRequest, db: AsyncSession = Depends(
     )
     await db.commit()
     return {"data": {"message": "Password updated successfully."}}
+
+
+# ── Users search ───────────────────────────────────────────────────────────────
+
+@users_router.get("/search")
+async def search_users(
+    q: str = "",
+    board_id: Optional[int] = None,
+    limit: int = 8,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Search platform users by name or email for invite autocomplete."""
+    from models.board_membership import BoardMembership
+
+    stmt = select(User).where(
+        User.is_deleted == False,
+        User.is_active == True,
+        User.id != current_user.id,
+    )
+    if q.strip():
+        like = f"%{q.strip()}%"
+        stmt = stmt.where(or_(User.full_name.ilike(like), User.email.ilike(like)))
+    if board_id:
+        already_in = select(BoardMembership.user_id).where(BoardMembership.board_id == board_id)
+        stmt = stmt.where(User.id.notin_(already_in))
+    stmt = stmt.order_by(User.full_name).limit(max(1, min(limit, 20)))
+
+    users = (await db.execute(stmt)).scalars().all()
+    return {
+        "data": [
+            {
+                "id": u.id,
+                "full_name": u.full_name,
+                "email": str(u.email),
+                "initials_color": u.initials_color,
+                "avatar_url": u.avatar_url,
+            }
+            for u in users
+        ]
+    }
 
 
 # ── Users /me ─────────────────────────────────────────────────────────────────
@@ -586,8 +800,12 @@ async def change_password(
 ):
     if not verify_password(body.current_password, current_user.password_hash):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Current password is incorrect")
+    # Fix 12: record change time so existing tokens are invalidated by get_current_user
     await db.execute(
-        update(User).where(User.id == current_user.id).values(password_hash=hash_password(body.new_password))
+        update(User).where(User.id == current_user.id).values(
+            password_hash=hash_password(body.new_password),
+            password_changed_at=datetime.now(timezone.utc),
+        )
     )
     await db.commit()
     return {"data": {"message": "Password changed successfully."}}

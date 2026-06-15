@@ -1,0 +1,191 @@
+/* ── Mobile Responsiveness ─────────────────────────────────────────────────── */
+/* Breakpoints: sm=640px, md=768px */
+
+/* ── Touch scrolling on all overflow containers ── */
+* {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ─── Card Modal ────────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .card-modal-wrapper {
+    max-width: 100% !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    border-radius: 0 !important;
+  }
+
+  .card-modal-body {
+    flex-direction: column !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+
+  .card-modal-right {
+    width: 100% !important;
+    border-left: none !important;
+    border-top: 1px solid var(--border) !important;
+    flex-shrink: 0 !important;
+    max-height: 420px;
+  }
+
+  .card-modal-left {
+    overflow-y: auto !important;
+    flex-shrink: 0 !important;
+  }
+}
+
+/* ─── Profile Shell ─────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .profile-shell-body {
+    flex-direction: column !important;
+  }
+
+  .profile-shell-sidebar {
+    width: 100% !important;
+    flex-direction: row !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border) !important;
+    padding: 6px 8px !important;
+    gap: 2px !important;
+    overflow-x: auto !important;
+    flex-shrink: 0 !important;
+    min-height: unset !important;
+  }
+
+  /* nav item labels — hide section header on mobile */
+  .profile-sidebar-label {
+    display: none !important;
+  }
+
+  .profile-shell-content {
+    padding: 16px 12px !important;
+  }
+}
+
+/* ─── Board Column ──────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .board-column {
+    width: calc(85vw) !important;
+    min-width: calc(85vw) !important;
+  }
+}
+
+/* ─── Board View canvas ─────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .board-canvas {
+    padding: 8px !important;
+    gap: 8px !important;
+  }
+}
+
+/* ─── Dashboard ─────────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .dash-content {
+    padding: 12px !important;
+    gap: 16px !important;
+  }
+
+  /* Force chart grids to single column on mobile */
+  .dash-content > div[style*="minmax(480"],
+  .dash-content > div[style*="480px"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ─── Subscription Pane ─────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .sub-tab-bar {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .sub-tab-bar button {
+    white-space: nowrap;
+  }
+}
+
+/* ─── Notification Page ─────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .notif-layout {
+    flex-direction: column !important;
+  }
+
+  .notif-sidebar {
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border) !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    padding: 6px 8px !important;
+    height: auto !important;
+    flex-shrink: 0 !important;
+  }
+
+  .notif-content {
+    overflow-y: auto !important;
+    padding: 16px 12px !important;
+  }
+}
+
+/* ─── Admin Panel ───────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .admin-table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-table-wrap table {
+    min-width: 600px;
+  }
+}
+
+/* ─── Modals — full width on mobile ────────────────────────────────────────── */
+@media (max-width: 480px) {
+  /* Generic modal: fill screen with minimal padding */
+  .modal-responsive {
+    max-width: calc(100vw - 16px) !important;
+    width: calc(100vw - 16px) !important;
+  }
+}
+
+/* ─── My Boards page ────────────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .boards-page-header {
+    padding: 10px 12px !important;
+  }
+
+  .boards-page-body {
+    padding: 12px !important;
+  }
+}
+
+/* ─── Global Nav hamburger dropdown ────────────────────────────────────────── */
+@media (max-width: 639px) {
+  .mobile-menu-dropdown {
+    width: 200px !important;
+  }
+}
+
+/* ─── General utility: hide non-critical labels on mobile ─────────────────── */
+@media (max-width: 480px) {
+  .hide-xs {
+    display: none !important;
+  }
+}
+
+/* ─── Touch target minimum size ─────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .touch-target {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+}
+
+/* ─── Prevent horizontal overflow on root ───────────────────────────────────── */
+html, body, #root {
+  max-width: 100%;
+  overflow-x: hidden;
+}

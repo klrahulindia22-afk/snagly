@@ -23,13 +23,15 @@ export default function useNotifications() {
   useEffect(() => {
     const handler = (msg) => {
       if (msg.type === "notification") {
+        // Optimistic increment so badge updates instantly
         setUnreadCount((c) => c + 1);
-        setLatest((prev) => [msg.data, ...prev].slice(0, 20));
+        // Sync accurate count from DB after the backend commit completes (≥150ms)
+        setTimeout(() => poll(), 300);
       }
     };
     wsService.subscribe("notification", handler);
     return () => wsService.unsubscribe("notification", handler);
-  }, []);
+  }, [poll]);
 
   useEffect(() => {
     poll();

@@ -2,9 +2,76 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Light-mode tokens ── */
 :root {
-  --accent: #0f9e8e;
-  --bg-board: #0d1f1d;
+  --accent: #6c63ff;
+  --bg-nav: #006452;
+
+  /* Board layout */
+  --app-bg:  #176b52;
+  --col-bg:  #ebecf0;
+  --card-bg: #ffffff;
+  --card-shadow: 0 1px 3px rgba(9,30,66,.12), 0 0 0 1px rgba(9,30,66,.08);
+
+  /* Typography */
+  --text-primary:   #172b4d;
+  --text-secondary: #5e6c84;
+  --text-muted:     #8993a4;
+
+  /* Borders & inputs */
+  --border:         #dfe1e6;
+  --input-bg:       #f4f5f7;
+  --input-bg-focus: #ffffff;
+  --input-bg-hover: #dfe1e6;
+  --input-border:   #dfe1e6;
+
+  /* Modals */
+  --modal-bg:         #ffffff;
+  --modal-sidebar-bg: #f4f5f7;
+  --comment-bubble:   #f4f5f7;
+
+  /* Column action buttons */
+  --col-btn-text:     rgba(9,30,66,.6);
+  --col-btn-hover-bg: rgba(9,30,66,.08);
+
+  /* Semantic */
+  --danger:  #de350b;
+  --success: #61bd4f;
+
+  /* Label palette */
+  --label-red:    #de350b;
+  --label-orange: #ff991f;
+  --label-yellow: #f2d600;
+  --label-green:  #61bd4f;
+  --label-blue:   #0079bf;
+  --label-teal:   #00c2e0;
+  --label-purple: #c377e0;
+  --label-sky:    #29ccdb;
+}
+
+/* ── Dark-mode overrides (toggled by adding class="dark" on <html>) ── */
+html.dark {
+  --app-bg:  #0f172a;
+  --col-bg:  #1e2840;
+  --card-bg: #253150;
+  --card-shadow: 0 1px 3px rgba(0,0,0,.4), 0 0 0 1px rgba(0,0,0,.3);
+
+  --text-primary:   #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted:     #64748b;
+
+  --border:         #374162;
+  --input-bg:       #1a2540;
+  --input-bg-focus: #253150;
+  --input-bg-hover: #2d3a56;
+  --input-border:   #374162;
+
+  --modal-bg:         #1e2840;
+  --modal-sidebar-bg: #162035;
+  --comment-bubble:   #253150;
+
+  --col-btn-text:     rgba(255,255,255,.5);
+  --col-btn-hover-bg: rgba(255,255,255,.08);
 }
 
 * {
@@ -14,6 +81,46 @@
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: var(--bg-board);
-  color: #e2e8f0;
+  background-color: var(--app-bg);
+  color: var(--text-primary);
+}
+
+/* ── Thin transparent scrollbar (shared) ── */
+.col-card-list::-webkit-scrollbar,
+.thin-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.col-card-list::-webkit-scrollbar-track,
+.thin-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.col-card-list::-webkit-scrollbar-thumb,
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+.col-card-list::-webkit-scrollbar-thumb:hover,
+.thin-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.28);
+}
+
+/* ── Loader animations ── */
+@keyframes loader-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes sk-shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position:  600px 0; }
+}
+
+.sk-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--input-bg, #f4f5f7) 25%,
+    var(--border,   #dfe1e6) 50%,
+    var(--input-bg, #f4f5f7) 75%
+  );
+  background-size: 1200px 100%;
+  animation: sk-shimmer 1.5s infinite linear;
 }

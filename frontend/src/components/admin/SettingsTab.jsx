@@ -68,7 +68,7 @@ function SettingRow({ k, value, onSave }) {
               <select
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
-                className="bg-white/8 border border-white/20 rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:border-[#0f9e8e]"
+                className="bg-white/8 border border-white/20 rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:border-[#6c63ff]"
               >
                 <option value="true">Enabled</option>
                 <option value="false">Disabled</option>
@@ -79,13 +79,13 @@ function SettingRow({ k, value, onSave }) {
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 autoFocus
-                className="w-28 bg-white/8 border border-white/20 rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:border-[#0f9e8e]"
+                className="w-28 bg-white/8 border border-white/20 rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:border-[#6c63ff]"
               />
             )}
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-3 py-1 bg-[#0f9e8e] hover:bg-[#0b8b7f] text-white text-xs rounded-lg transition-colors disabled:opacity-50"
+              className="px-3 py-1 bg-[#6c63ff] hover:bg-[#5b52e0] text-white text-xs rounded-lg transition-colors disabled:opacity-50"
             >
               {saving ? "…" : "Save"}
             </button>

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getBoardArchive } from "../../api/boards";
 import { restoreCard, permanentDeleteCard } from "../../api/cards";
 import { restoreList } from "../../api/lists";
+import { SectionLoader } from "../ui/Loader";
 import { relativeTime } from "../../utils/dates";
 
 const PRIORITY_COLORS = {
@@ -79,7 +80,7 @@ function ArchivedCards({ cards, onRestore, onDelete, search }) {
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => onRestore(card)}
-              className="px-2.5 py-1 text-xs rounded-lg bg-[#0f9e8e]/20 text-[#0f9e8e] hover:bg-[#0f9e8e]/40 transition-colors font-medium"
+              className="px-2.5 py-1 text-xs rounded-lg bg-[#6c63ff]/20 text-[#6c63ff] hover:bg-[#6c63ff]/40 transition-colors font-medium"
             >
               Restore
             </button>
@@ -121,7 +122,7 @@ function ArchivedLists({ lists, onRestore, search }) {
         >
           <div
             className="w-3 h-3 rounded-sm shrink-0"
-            style={{ backgroundColor: list.color || "#0f9e8e" }}
+            style={{ backgroundColor: list.color || "#6c63ff" }}
           />
           <div className="flex-1 min-w-0">
             <p className="text-white/85 text-sm truncate">{list.name}</p>
@@ -134,7 +135,7 @@ function ArchivedLists({ lists, onRestore, search }) {
           </div>
           <button
             onClick={() => onRestore(list)}
-            className="px-2.5 py-1 text-xs rounded-lg bg-[#0f9e8e]/20 text-[#0f9e8e] hover:bg-[#0f9e8e]/40 transition-colors font-medium shrink-0"
+            className="px-2.5 py-1 text-xs rounded-lg bg-[#6c63ff]/20 text-[#6c63ff] hover:bg-[#6c63ff]/40 transition-colors font-medium shrink-0"
           >
             Restore
           </button>
@@ -225,7 +226,7 @@ export default function ArchivePage() {
               key={t}
               onClick={() => setTab(t)}
               className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                tab === t ? "bg-[#0f9e8e] text-white" : "text-white/50 hover:text-white"
+                tab === t ? "bg-[#6c63ff] text-white" : "text-white/50 hover:text-white"
               }`}
             >
               {t === "cards" ? `Cards (${cards.length})` : `Columns (${lists.length})`}
@@ -249,14 +250,14 @@ export default function ArchivePage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={`Search ${tab === "cards" ? "archived cards" : "archived columns"}…`}
-            className="w-full bg-white/8 border border-white/10 rounded-lg pl-8 pr-3 py-1.5 text-white placeholder-white/25 text-xs focus:outline-none focus:border-[#0f9e8e]"
+            className="w-full bg-white/8 border border-white/10 rounded-lg pl-8 pr-3 py-1.5 text-white placeholder-white/25 text-xs focus:outline-none focus:border-[#6c63ff]"
           />
         </div>
       </div>
 
       {/* Content */}
       {loading ? (
-        <p className="text-white/30 text-sm text-center py-16">Loading archive…</p>
+        <SectionLoader color="rgba(255,255,255,.5)" message="Loading archive…" height={200} />
       ) : tab === "cards" ? (
         <ArchivedCards
           cards={cards}

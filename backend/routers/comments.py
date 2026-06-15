@@ -11,6 +11,7 @@ from models.card import Card
 from models.comment import Comment
 from models.comment_reply import CommentReply
 from models.board_membership import BoardMembership
+from models.board import Board
 from middleware.auth import get_current_user
 from services.notif_service import create_notification
 
@@ -58,6 +59,30 @@ async def _get_card_member(card_id: int, user: User, db: AsyncSession):
     return card, m
 
 
+async def _send_mention_email_task(
+    to_email: str,
+    mentioned_name: str,
+    mentioner_name: str,
+    board_name: str,
+    card_title: str,
+    card_url: str,
+    comment_preview: str,
+) -> None:
+    try:
+        from services.email_service import send_mention_email
+        await send_mention_email(
+            to_email=to_email,
+            mentioned_name=mentioned_name,
+            mentioner_name=mentioner_name,
+            board_name=board_name,
+            card_title=card_title,
+            card_url=card_url,
+            comment_preview=comment_preview,
+        )
+    except Exception:
+        pass
+
+
 async def _detect_and_notify_mentions(
     body: str,
     board_id: int,
@@ -65,20 +90,33 @@ async def _detect_and_notify_mentions(
     comment_id: int,
     author_id: int,
     db: AsyncSession,
+    card_title: str = "",
+    board_name: str = "",
+    author_name: str = "",
 ):
-    """Parse @word patterns and notify matching board members."""
+    """Parse @word patterns and notify matching board members. @board notifies everyone."""
     words = {w.lower() for w in _MENTION_RE.findall(body)}
     if not words:
-        return
+        return set()
+
+    is_board_mention = "board" in words
+
+    from config import settings
+    card_url = f"{settings.FRONTEND_URL}/board/{board_id}?card={card_id}"
 
     result = await db.execute(
         select(BoardMembership, User)
         .join(User, BoardMembership.user_id == User.id)
         .where(BoardMembership.board_id == board_id, User.id != author_id)
     )
+    notified_ids: set = set()
     for membership, member in result.all():
+        if member.id in notified_ids:
+            continue
         name_tokens = {t.lower() for t in member.full_name.split()}
-        if words & name_tokens:
+        should_notify = is_board_mention or bool(words & name_tokens)
+        if should_notify:
+            notified_ids.add(member.id)
             await create_notification(
                 db,
                 user_id=member.id,
@@ -86,6 +124,18 @@ async def _detect_and_notify_mentions(
                 created_by_id=author_id,
                 payload={"board_id": board_id, "card_id": card_id, "comment_id": comment_id},
             )
+            asyncio.create_task(
+                _send_mention_email_task(
+                    to_email=str(member.email),
+                    mentioned_name=member.full_name,
+                    mentioner_name=author_name or "Someone",
+                    board_name=board_name,
+                    card_title=card_title,
+                    card_url=card_url,
+                    comment_preview=body,
+                )
+            )
+    return notified_ids
 
 
 async def _comment_out(comment: Comment, db: AsyncSession) -> dict:
@@ -154,15 +204,33 @@ async def create_comment(
     db: AsyncSession = Depends(get_db),
 ):
     card, _ = await _get_card_member(card_id, current_user, db)
+    board = await db.scalar(select(Board).where(Board.id == card.board_id))
 
     comment = Comment(card_id=card_id, user_id=current_user.id, body=body.body)
     db.add(comment)
     await db.flush()
 
     comment_id = comment.id
-    await _detect_and_notify_mentions(
-        body.body, card.board_id, card_id, comment_id, current_user.id, db
-    )
+    mentioned_ids = await _detect_and_notify_mentions(
+        body.body, card.board_id, card_id, comment_id, current_user.id, db,
+        card_title=card.title or "",
+        board_name=board.name if board else "",
+        author_name=current_user.full_name or "",
+    ) or set()
+
+    # Notify card assignees who weren't already notified via @mention
+    from models.card_assignee import CardAssignee as _CA
+    ca_rows = await db.execute(select(_CA).where(_CA.card_id == card_id))
+    for ca in ca_rows.scalars().all():
+        if ca.user_id != current_user.id and ca.user_id not in mentioned_ids:
+            await create_notification(
+                db,
+                user_id=ca.user_id,
+                type="comment",
+                created_by_id=current_user.id,
+                payload={"board_id": card.board_id, "card_id": card_id, "comment_id": comment_id},
+            )
+
     await db.commit()
 
     comment = await db.scalar(select(Comment).where(Comment.id == comment_id))
@@ -189,9 +257,13 @@ async def update_comment(
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Cannot edit another user's comment")
 
     card = await db.scalar(select(Card).where(Card.id == comment.card_id))
+    board = await db.scalar(select(Board).where(Board.id == card.board_id)) if card else None
     await db.execute(update(Comment).where(Comment.id == comment_id).values(body=body.body))
     await _detect_and_notify_mentions(
-        body.body, card.board_id, comment.card_id, comment_id, current_user.id, db
+        body.body, card.board_id, comment.card_id, comment_id, current_user.id, db,
+        card_title=card.title or "" if card else "",
+        board_name=board.name if board else "",
+        author_name=current_user.full_name or "",
     )
     await db.commit()
 

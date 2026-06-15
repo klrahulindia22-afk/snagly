@@ -18,6 +18,16 @@ def _get_fernet() -> Fernet:
     return _fernet
 
 
+def fernet_encrypt(plaintext: str) -> str:
+    """Encrypt a plain string (e.g. TOTP secret)."""
+    return _get_fernet().encrypt(plaintext.encode()).decode()
+
+
+def fernet_decrypt(token: str) -> str:
+    """Decrypt a Fernet token back to a plain string."""
+    return _get_fernet().decrypt(token.encode()).decode()
+
+
 def encrypt_json(data: dict) -> str:
     return _get_fernet().encrypt(json.dumps(data).encode()).decode()
 

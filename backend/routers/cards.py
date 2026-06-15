@@ -18,6 +18,8 @@ from models.board_membership import BoardMembership
 from models.checklist import Checklist
 from models.checklist_item import ChecklistItem
 from schemas.card import CardCreate, CardUpdate, CardMove, CardFace, LabelMiniOut, AssigneeMiniOut, CardMetaOut
+from services.activity_service import log_activity
+from services.notif_service import create_notification
 from models.sla_rule import SLARule
 from models.card_watcher import CardWatcher
 from models.card_field import CardField
@@ -59,10 +61,17 @@ async def _require_member(board_id: int, current_user: User, db: AsyncSession):
     return board, m
 
 
-async def _get_card_for_user(card_id: int, current_user: User, db: AsyncSession) -> Card:
-    card = await db.scalar(
-        select(Card).where(Card.id == card_id, Card.is_deleted == False)
-    )
+async def _get_card_for_user(
+    card_id: int,
+    current_user: User,
+    db: AsyncSession,
+    include_archived: bool = False,
+) -> Card:
+    # Fix 15: exclude archived cards by default so regular endpoints don't expose them
+    q = select(Card).where(Card.id == card_id, Card.is_deleted == False)
+    if not include_archived:
+        q = q.where(Card.is_archived == False)
+    card = await db.scalar(q)
     if not card:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Card not found")
     await _require_member(card.board_id, current_user, db)
@@ -152,6 +161,10 @@ async def _build_card_face(card: Card, db: AsyncSession, current_user_id: Option
         select(func.sum(TimeEntry.duration_minutes)).where(TimeEntry.card_id == card.id)
     ) or 0
 
+    # Extra context fields
+    list_obj = await db.scalar(select(List).where(List.id == card.list_id))
+    creator = await db.scalar(select(User).where(User.id == card.created_by_id)) if card.created_by_id else None
+
     return CardFace(
         id=card.id, board_id=card.board_id, list_id=card.list_id,
         title=card.title, description=card.description, position=card.position,
@@ -159,7 +172,12 @@ async def _build_card_face(card: Card, db: AsyncSession, current_user_id: Option
         source=card.source.value, due_date=card.due_date, start_date=card.start_date,
         cover_image_url=card.cover_image_url,
         is_archived=card.is_archived, is_deleted=card.is_deleted,
-        created_by_id=card.created_by_id, created_at=card.created_at,
+        is_complete=card.is_complete or False,
+        created_by_id=card.created_by_id,
+        created_by_name=creator.full_name if creator else None,
+        created_at=card.created_at,
+        updated_at=card.updated_at,
+        list_name=list_obj.name if list_obj else None,
         labels=labels, assignees=assignees, meta=meta,
         checklist_total=checklist_total, checklist_checked=checklist_checked,
         watcher_count=watcher_count, is_watching=is_watching,
@@ -304,6 +322,7 @@ async def create_card(
             }),
         ))
 
+    await log_activity(db, board_id=board_id, user_id=current_user.id, action="card.created", card_id=card.id, detail={"title": card.title})
     await db.commit()
     await db.refresh(card)
     face = await _build_card_face(card, db, current_user.id)
@@ -332,8 +351,31 @@ async def update_card(
     db: AsyncSession = Depends(get_db),
 ):
     card = await _get_card_for_user(card_id, current_user, db)
+    # Fix 9: clients may only edit cards they created and cannot override the source field
+    _, m = await _require_member(card.board_id, current_user, db)
+    if m.role == UserRole.client and card.created_by_id != current_user.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Clients can only edit their own cards")
     changes = body.model_dump(exclude_none=True)
+    if m.role == UserRole.client:
+        changes.pop("source", None)
     if changes:
+        _LOG_FIELDS = {
+            "title": "renamed card",
+            "description": "updated description",
+            "priority": "changed priority to {value}",
+            "severity": "changed severity to {value}",
+            "due_date": "set due date",
+            "start_date": "set start date",
+            "is_complete": None,  # handled specially below
+        }
+        for field, tmpl in _LOG_FIELDS.items():
+            if field not in changes:
+                continue
+            if field == "is_complete":
+                action = "marked card complete" if changes[field] else "marked card incomplete"
+            else:
+                action = tmpl.format(value=changes[field]) if "{value}" in (tmpl or "") else tmpl
+            await log_activity(db, board_id=card.board_id, user_id=current_user.id, action=action, card_id=card_id)
         await db.execute(update(Card).where(Card.id == card_id).values(**changes))
         await db.commit()
         await db.refresh(card)
@@ -373,6 +415,7 @@ async def archive_card(
             is_archived=True, archived_at=datetime.now(timezone.utc)
         )
     )
+    await log_activity(db, board_id=card.board_id, user_id=current_user.id, action="archived this card", card_id=card_id)
     await db.commit()
     asyncio.create_task(_broadcast("card.archived", card.board_id, {"card_id": card_id, "list_id": card.list_id}))
     return {"data": {"message": "Card archived."}}
@@ -384,7 +427,7 @@ async def restore_card(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    card = await _get_card_for_user(card_id, current_user, db)
+    card = await _get_card_for_user(card_id, current_user, db, include_archived=True)
     await db.execute(
         update(Card).where(Card.id == card_id).values(is_archived=False, archived_at=None)
     )
@@ -401,7 +444,7 @@ async def permanent_delete_card(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    card = await _get_card_for_user(card_id, current_user, db)
+    card = await _get_card_for_user(card_id, current_user, db, include_archived=True)
     if not card.is_archived:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Card must be archived before permanent deletion")
     await db.execute(
@@ -433,6 +476,8 @@ async def move_card(
     await db.execute(
         update(Card).where(Card.id == card_id).values(list_id=body.list_id, position=body.position)
     )
+    if old_list_id != body.list_id:
+        await log_activity(db, board_id=card.board_id, user_id=current_user.id, action=f"moved card to {target_list.name}", card_id=card_id)
     await db.commit()
 
     # Normalize positions in affected lists
@@ -470,6 +515,8 @@ async def add_label(
     if existing:
         raise HTTPException(status.HTTP_409_CONFLICT, "Label already applied")
     db.add(CardLabel(card_id=card_id, label_id=label_id))
+    label_name = label.name or label.color
+    await log_activity(db, board_id=card.board_id, user_id=current_user.id, action=f"added label {label_name}", card_id=card_id)
     await db.commit()
     return {"data": {"message": "Label added."}}
 
@@ -481,10 +528,13 @@ async def remove_label(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await _get_card_for_user(card_id, current_user, db)
+    card = await _get_card_for_user(card_id, current_user, db)
+    label = await db.scalar(select(Label).where(Label.id == label_id))
     await db.execute(
         delete(CardLabel).where(CardLabel.card_id == card_id, CardLabel.label_id == label_id)
     )
+    if label:
+        await log_activity(db, board_id=card.board_id, user_id=current_user.id, action=f"removed label {label.name or label.color}", card_id=card_id)
     await db.commit()
     return {"data": {"message": "Label removed."}}
 
@@ -513,7 +563,17 @@ async def add_assignee(
     )
     if existing:
         raise HTTPException(status.HTTP_409_CONFLICT, "User already assigned")
+    assigned_user = await db.scalar(select(User).where(User.id == user_id))
     db.add(CardAssignee(card_id=card_id, user_id=user_id))
+    await log_activity(db, board_id=card.board_id, user_id=current_user.id, action=f"assigned {assigned_user.full_name if assigned_user else 'member'}", card_id=card_id)
+    if user_id != current_user.id:
+        await create_notification(
+            db,
+            user_id=user_id,
+            type="card_assigned",
+            created_by_id=current_user.id,
+            payload={"board_id": card.board_id, "card_id": card_id},
+        )
     await db.commit()
     return {"data": {"message": "Assignee added."}}
 
@@ -525,10 +585,12 @@ async def remove_assignee(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await _get_card_for_user(card_id, current_user, db)
+    card = await _get_card_for_user(card_id, current_user, db)
+    removed_user = await db.scalar(select(User).where(User.id == user_id))
     await db.execute(
         delete(CardAssignee).where(CardAssignee.card_id == card_id, CardAssignee.user_id == user_id)
     )
+    await log_activity(db, board_id=card.board_id, user_id=current_user.id, action=f"removed {removed_user.full_name if removed_user else 'member'} from card", card_id=card_id)
     await db.commit()
     return {"data": {"message": "Assignee removed."}}
 

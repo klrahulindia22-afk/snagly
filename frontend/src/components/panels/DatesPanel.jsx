@@ -23,16 +23,26 @@ function CalendarGrid({ selected, onSelect, label }) {
 
   return (
     <div>
-      <p className="text-white/50 text-[10px] mb-1 font-medium uppercase tracking-wide">{label}</p>
-      <div className="bg-white/5 rounded-lg p-2">
-        <div className="flex items-center justify-between mb-2">
-          <button onClick={() => setViewDate(new Date(year, month - 1, 1))} className="text-white/40 hover:text-white px-1">‹</button>
-          <span className="text-white text-xs font-medium">{monthNames[month]} {year}</span>
-          <button onClick={() => setViewDate(new Date(year, month + 1, 1))} className="text-white/40 hover:text-white px-1">›</button>
+      <p style={{ fontSize:10, fontWeight:700, color:"var(--text-muted)", textTransform:"uppercase", letterSpacing:.5, marginBottom:6 }}>{label}</p>
+      <div style={{ background:"var(--input-bg)", borderRadius:6, padding:8 }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+          <button
+            onClick={() => setViewDate(new Date(year, month - 1, 1))}
+            style={{ background:"none", border:"none", color:"var(--text-muted)", cursor:"pointer", fontSize:16, lineHeight:1, padding:"0 4px" }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-primary)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
+          >‹</button>
+          <span style={{ fontSize:12, fontWeight:600, color:"var(--text-primary)" }}>{monthNames[month]} {year}</span>
+          <button
+            onClick={() => setViewDate(new Date(year, month + 1, 1))}
+            style={{ background:"none", border:"none", color:"var(--text-muted)", cursor:"pointer", fontSize:16, lineHeight:1, padding:"0 4px" }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-primary)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
+          >›</button>
         </div>
-        <div className="grid grid-cols-7 gap-0.5 text-center">
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2, textAlign:"center" }}>
           {["Su","Mo","Tu","We","Th","Fr","Sa"].map((d) => (
-            <div key={d} className="text-white/30 text-[9px] py-0.5">{d}</div>
+            <div key={d} style={{ fontSize:9, color:"var(--text-muted)", padding:"2px 0" }}>{d}</div>
           ))}
           {cells.map((date, i) => {
             if (!date) return <div key={`e${i}`} />;
@@ -42,10 +52,14 @@ function CalendarGrid({ selected, onSelect, label }) {
               <button
                 key={date.getDate()}
                 onClick={() => onSelect(date.toISOString())}
-                className={`text-[11px] py-1 rounded transition-colors
-                  ${isSelected ? "bg-[#0f9e8e] text-white font-semibold" :
-                    isToday ? "text-[#0f9e8e] font-semibold hover:bg-white/10" :
-                    "text-white/70 hover:bg-white/10"}`}
+                style={{
+                  fontSize:11, padding:"4px 0", borderRadius:4, border:"none", cursor:"pointer", fontFamily:"inherit",
+                  background: isSelected ? "#6c63ff" : "none",
+                  color: isSelected ? "#fff" : isToday ? "#6c63ff" : "var(--text-primary)",
+                  fontWeight: isSelected || isToday ? 700 : 400,
+                }}
+                onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = "var(--input-bg-hover)"; }}
+                onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = "none"; }}
               >
                 {date.getDate()}
               </button>
@@ -55,10 +69,10 @@ function CalendarGrid({ selected, onSelect, label }) {
         {selected && (
           <button
             onClick={() => onSelect(null)}
-            className="mt-1 w-full text-[10px] text-white/30 hover:text-white/60"
-          >
-            Clear
-          </button>
+            style={{ marginTop:6, width:"100%", fontSize:10, background:"none", border:"none", color:"var(--text-muted)", cursor:"pointer", fontFamily:"inherit" }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-secondary)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
+          >Clear</button>
         )}
       </div>
     </div>
@@ -82,10 +96,18 @@ export default function DatesPanel({ cardId, startDate, dueDate, onClose, onCard
   };
 
   return (
-    <div className="w-64 bg-[#1e2435] border border-white/10 rounded-xl shadow-2xl p-3">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-white text-xs font-semibold">Dates</h3>
-        <button onClick={onClose} className="text-white/40 hover:text-white text-xs">✕</button>
+    <div style={{
+      width:256, background:"var(--modal-bg)", border:"1px solid var(--border)",
+      borderRadius:8, boxShadow:"0 8px 32px rgba(0,0,0,.18)", padding:12,
+    }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+        <h3 style={{ fontSize:12, fontWeight:700, color:"var(--text-primary)", margin:0 }}>Dates</h3>
+        <button
+          onClick={onClose}
+          style={{ background:"none", border:"none", color:"var(--text-muted)", cursor:"pointer", fontSize:14, lineHeight:1, padding:2 }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--text-primary)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; }}
+        >✕</button>
       </div>
 
       <div className="space-y-3">
@@ -96,7 +118,9 @@ export default function DatesPanel({ cardId, startDate, dueDate, onClose, onCard
       <button
         onClick={save}
         disabled={saving}
-        className="mt-3 w-full py-1.5 bg-[#0f9e8e] hover:bg-[#0b8b7f] text-white rounded-lg text-xs font-medium disabled:opacity-50 transition-colors"
+        style={{ marginTop:12, width:"100%", padding:"7px 0", background:"#6c63ff", color:"#fff", borderRadius:6, border:"none", fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:"inherit", opacity:saving?0.5:1 }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = "#5b52e0"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = "#6c63ff"; }}
       >
         {saving ? "Saving…" : "Save"}
       </button>

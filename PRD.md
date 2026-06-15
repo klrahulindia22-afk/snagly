@@ -1,6 +1,6 @@
 # Product Requirements Document — Bug Reporting & Project Management Tool
 
-> **Status:** Draft v1.1 — Phase 0 added: Landing/Pricing, Email OTP, 2FA, Plans, Admin Settings
+> **Status:** Draft v0.8 — 4 additions from Trello screenshot review: recurring due dates, share board via link, join requests, list automation rules
 > **Owner:** NMG (NMG Technologies)
 > **Working name:** BugTrack *(placeholder — confirm name)*
 > **Build method:** Claude Code (PRD → Design → Project setup with CLAUDE.md)
@@ -61,32 +61,10 @@ This tool centralises intake, captures environment metadata automatically, gives
 > All roles require login before accessing any part of the app.
 
 ### 4.2 Authentication
-
-#### Standard login
 - Email + password login for all users.
-- JWT-based sessions (access 15 min + refresh 7 days).
+- JWT-based sessions.
 - Passwords hashed (bcrypt).
 - Board access is granted only via invite — no self-registration without an invite link.
-
-#### Email OTP verification
-- On signup (or admin-created accounts on first login), users must verify their email address via a **6-digit OTP** sent to their inbox.
-- OTP is valid for 10 minutes and hashed in the database (never stored plain).
-- Up to 3 verification attempts before the OTP is invalidated (requires resend).
-- Resend is rate-limited: maximum 3 resends per hour per email.
-- Unverified users cannot access the app beyond the `/verify-email` screen.
-
-#### Two-factor authentication (2FA)
-- Optional TOTP-based 2FA (compatible with Google Authenticator, Authy, etc.).
-- Setup flow: user navigates to Profile → Security → Enable 2FA. Backend generates a TOTP secret (encrypted at rest), returns a QR code URL for the authenticator app. User confirms by entering their first TOTP code.
-- On confirmation, 10 single-use backup codes are generated, shown once, and their hashes stored in DB.
-- When 2FA is enabled, login requires: email + password (step 1) → 2FA challenge screen (step 2) → issue full JWT.
-- 2FA challenge accepts: TOTP code, email OTP (fallback), or a backup code.
-- Super Admin can force-disable 2FA on a user account (admin audit logged).
-
-#### Account lockout
-- After 5 consecutive failed login attempts within 15 minutes, the account is locked for 30 minutes.
-- Lockout is tracked in the `LoginAttempt` table (IP address + email, timestamp).
-- Locked-out users see a clear message with time remaining. Admins can manually unlock.
 
 ---
 
@@ -527,11 +505,10 @@ A global keyboard shortcut layer for power users (primarily the QA/dev team):
 
 | Shortcut | Action |
 |----------|--------|
-| `Cmd+K` / `Ctrl+K` | Open command palette |
 | `/` | Focus global search |
 | `N` | Open quick-add card (in the first column of the current board) |
 | `F` | Toggle filter toolbar open/closed |
-| `Esc` | Close modal / card detail / dropdown / command palette |
+| `Esc` | Close modal / card detail / dropdown |
 | `?` | Open keyboard shortcut reference overlay |
 | `B` | Go to My Boards home |
 | `A` | Open archive panel |
@@ -755,444 +732,6 @@ Accessed from the **My Boards home screen** via a **"Global Reports"** button in
 | Global dashboard | ✅ (all boards) | ✅ (own boards only) | ✅ (member boards only) | ❌ |
 | Export PDF / CSV | ✅ | ✅ | ✅ | ❌ |
 
-### 5.21 Public Pages & Plans (Phase 0)
-
-#### Landing page (`/`)
-Public, no login required. Purpose: introduce BugTrack to prospective customers and drive sign-ups.
-
-Sections (top to bottom):
-- **Hero** — headline, sub-headline, primary CTA button ("Start free" → `/pricing`), secondary CTA ("See it in action" → anchor scroll to demo).
-- **Features overview** — 3–4 key feature highlights with icon + title + one-line description (Kanban board, bug tracking, team collaboration, integrations).
-- **Screenshots / demo** — static or animated screenshot of the board view.
-- **Pricing teaser** — brief pricing tier summary with a "View pricing" link.
-- **Footer** — links: Pricing, Login, Contact.
-
-No login is required. The navbar shows only: BugTrack logo, "Pricing" link, "Log in" button.
-
-#### Pricing page (`/pricing`)
-Public. Shows plan tiers side by side.
-
-| Tier | Target | Key limits |
-|------|--------|------------|
-| **Free** | Indie / small teams | 1 board, 3 members, no integrations |
-| **Pro** | Growing teams | 10 boards, 25 members, ClickUp + GitHub integrations |
-| **Business** | Agencies / larger teams | Unlimited boards, unlimited members, all integrations, priority support |
-| **Enterprise** | Custom | Custom pricing, SLA, SSO (Phase 2) |
-
-Each plan card shows:
-- Plan name + monthly price (per seat or flat)
-- Feature list (checkmarks)
-- Primary CTA button: "Get started" (→ sign-up flow) or "Contact sales" (Enterprise)
-- "Current plan" badge if user is logged in and on that plan
-
-Feature flag lookup powered by `PlanFeatureFlag` table in the DB. The pricing page content can be managed via `SystemConfig` keys by Super Admin.
-
-#### Upgrade screen (`/upgrade`, in-app)
-Accessible when a logged-in user hits a plan limit (e.g. tries to create a board beyond their plan's board limit). Also accessible from Profile → Plan.
-
-Shows:
-- Current plan + usage summary (boards used / allowed, members used / allowed, integrations enabled).
-- Plan comparison table (same as pricing page, condensed).
-- "Upgrade to Pro" / "Upgrade to Business" CTAs.
-- For MVP: CTA links to a contact/sales email or external checkout. No in-app payment processing.
-
-#### Sign-up flow
-Since self-registration without an invite is not permitted for the main app, the sign-up flow from the landing/pricing page creates a **pending account** (unverified state) and sends an OTP.
-
-Steps:
-1. `/signup` — email + full name + password form. Submits to `POST /api/v1/auth/signup`. Account created in `is_verified: false` state.
-2. `/verify-email` — 6-digit OTP input. Submits to `POST /api/v1/auth/verify-email`. On success, account activated, user logged in (JWT issued), redirected to My Boards (empty state + first-board wizard).
-3. Resend OTP link on `/verify-email` → `POST /api/v1/auth/resend-otp` (rate-limited).
-
-> Note: Invite-based registration still works as before — invited users skip the signup form but still go through email verification if their account is new.
-
-#### 2FA setup (`/setup-2fa`)
-Triggered automatically after first login if admin has enforced 2FA for the organisation, or accessed voluntarily from Profile → Security.
-
-Steps:
-1. Backend returns a TOTP secret + QR code URL (`POST /api/v1/auth/setup-2fa`).
-2. Frontend renders the QR code (using a library or `<img>` from the OTP URI). User scans with their authenticator app.
-3. User enters the first TOTP code to confirm → `POST /api/v1/auth/confirm-2fa`.
-4. On success: backup codes displayed once (user must acknowledge). 2FA enabled on account.
-
-#### 2FA challenge (`/2fa`)
-Shown after successful email + password entry when the account has 2FA enabled.
-
-Accepts one of:
-- TOTP code (6 digits, from authenticator app).
-- Email OTP (fallback — "Send code to email" link triggers a fresh OTP).
-- Backup code (9-character alphanumeric, one-time use).
-
-On success → `POST /api/v1/auth/login-2fa` → full JWT issued → redirect to app.
-
-#### Admin settings (`/admin/settings` — Super Admin only)
-New tab in the Admin Panel for managing platform-wide configuration.
-
-| Key | Type | Description |
-|-----|------|-------------|
-| `signup_allowed` | bool | Allow public sign-ups (true) or invite-only (false) |
-| `2fa_required` | bool | Force all users to set up 2FA |
-| `free_plan_board_limit` | int | Max boards on free plan |
-| `free_plan_member_limit` | int | Max members per board on free plan |
-| `pro_plan_board_limit` | int | Max boards on pro plan |
-| `pro_plan_member_limit` | int | Max members per board on pro plan |
-| `maintenance_mode` | bool | Show maintenance banner site-wide |
-| `support_email` | string | Email shown on pricing/upgrade pages |
-
-Changes are written to `SystemConfig` table and take effect immediately. All changes logged in `AdminAuditLog`.
-
-#### New data model entities (Phase 0)
-
-**`Plan`**
-| Field | Type | Notes |
-|-------|------|-------|
-| id | BIGINT PK | |
-| name | VARCHAR(50) | free / pro / business / enterprise |
-| display_name | VARCHAR(100) | |
-| price_monthly | DECIMAL(10,2) | |
-| price_yearly | DECIMAL(10,2) | |
-| is_active | BOOL | |
-
-**`PlanFeatureFlag`**
-| Field | Type | Notes |
-|-------|------|-------|
-| id | BIGINT PK | |
-| plan_id | FK → Plan | |
-| feature_key | VARCHAR(100) | e.g. "integrations", "unlimited_boards" |
-| is_enabled | BOOL | |
-| limit_value | INT nullable | e.g. board count limit |
-
-**`SystemConfig`**
-| Field | Type | Notes |
-|-------|------|-------|
-| id | BIGINT PK | |
-| config_key | VARCHAR(100) UNIQUE | |
-| config_value | TEXT | JSON-encoded |
-| updated_by_id | FK → User | Super Admin who last changed it |
-| updated_at | DATETIME UTC | |
-
-**`LoginAttempt`**
-| Field | Type | Notes |
-|-------|------|-------|
-| id | BIGINT PK | |
-| email | VARCHAR(255) | |
-| ip_address | VARCHAR(45) | IPv4 or IPv6 |
-| success | BOOL | |
-| attempted_at | DATETIME UTC | |
-
-**`AdminAuditLog`**
-| Field | Type | Notes |
-|-------|------|-------|
-| id | BIGINT PK | |
-| admin_id | FK → User | |
-| action | VARCHAR(100) | e.g. "update_system_config", "disable_2fa" |
-| target_type | VARCHAR(50) | e.g. "User", "SystemConfig" |
-| target_id | BIGINT nullable | |
-| detail_json | TEXT | Before/after snapshot (JSON) |
-| performed_at | DATETIME UTC | |
-
-**User model additions (new columns on existing `users` table):**
-| Field | Type | Notes |
-|-------|------|-------|
-| is_verified | BOOL | False until OTP confirmed |
-| email_otp_hash | VARCHAR(255) nullable | bcrypt hash of current OTP |
-| email_otp_expires_at | DATETIME UTC nullable | |
-| email_otp_attempts | SMALLINT | Incremented per failed attempt |
-| totp_secret_encrypted | TEXT nullable | Fernet-encrypted TOTP secret |
-| two_fa_enabled | BOOL | Default false |
-| backup_codes_hash | TEXT nullable | JSON array of bcrypt-hashed backup codes |
-| plan_id | FK → Plan nullable | Null = free plan |
-| locked_until | DATETIME UTC nullable | Set on lockout |
-
-#### New API endpoints (Phase 0)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/v1/auth/signup` | Create unverified account, send OTP |
-| `POST` | `/api/v1/auth/verify-email` | Submit OTP → activate account, issue JWT |
-| `POST` | `/api/v1/auth/resend-otp` | Resend OTP (rate-limited) |
-| `POST` | `/api/v1/auth/setup-2fa` | Generate TOTP secret + QR URI |
-| `POST` | `/api/v1/auth/confirm-2fa` | Verify first TOTP, generate backup codes |
-| `POST` | `/api/v1/auth/login-2fa` | Submit TOTP/email OTP/backup code → issue full JWT |
-| `GET` | `/api/v1/admin/settings` | Fetch all `SystemConfig` values |
-| `PATCH` | `/api/v1/admin/settings` | Update one or more config keys (audit logged) |
-
----
-
-### 5.22 Card Watchers (Phase 15)
-
-Any board member can subscribe to a specific card to receive all its activity notifications, without being assigned to it.
-
-#### Watch / unwatch
-- A **Watch** toggle button appears in the right sidebar of the card detail modal (below the assignees section).
-- Clicking **Watch** subscribes the current user to the card. The button changes to **Watching** with a filled eye icon.
-- Clicking **Watching** unsubscribes. Confirmation is not required.
-- Watching is scoped to the card — a user can watch a card on a board they're a member of regardless of whether they're assigned.
-
-#### Watcher display on card face
-- If a card has watchers (excluding its assignees), a subtle eye icon with a count appears in the bottom-right area of the card face in board view: `👁 3`.
-- Hovering the icon in the card detail shows a small list of watcher names.
-
-#### Notification behaviour
-- Watchers receive **all** the same in-app notifications as assignees:
-  - Card moved to a new column
-  - Comment added
-  - @mention in a comment or description
-  - Due date changed
-  - Priority / severity changed
-  - Card archived or restored
-- Watchers do **not** receive email notifications by default; they can opt in via their notification preferences (new event group: "Cards I'm watching").
-- When a watcher is also an assignee, they are not double-notified.
-
-#### Data model addition
-New entity: **`CardWatcher`**
-
-| Field | Type | Notes |
-|-------|------|-------|
-| id | BIGINT PK | |
-| card_id | FK → Card | |
-| user_id | FK → User | |
-| created_at | DATETIME UTC | |
-
-Unique constraint: `(card_id, user_id)` — one row per user per card.
-
-#### API endpoints
-- `POST /api/v1/cards/:id/watch` — subscribe the current user (201 Created or 200 if already watching).
-- `DELETE /api/v1/cards/:id/watch` — unsubscribe the current user.
-- `GET /api/v1/cards/:id/watchers` — list all watchers (user id, full_name, initials_color).
-
-The `is_watching` field (boolean) and `watcher_count` (integer) are included in the existing card face response so the board view can show the eye icon without extra calls.
-
----
-
-### 5.22 Card Templates (Phase 15)
-
-Board owners and team members can save reusable bug card templates to speed up structured bug reporting. Templates pre-fill fields when creating a new card.
-
-#### What a template stores
-| Field | Notes |
-|-------|-------|
-| Name | Display name for the template (e.g. "Crash bug", "UI glitch", "Performance issue") |
-| Description | Pre-filled description body (Markdown) |
-| Severity | Optional default severity |
-| Priority | Optional default priority |
-| Checklist items | JSON array of item texts — added to a new checklist on the created card |
-
-Templates do **not** store: assignees, labels, attachments, due dates (those vary per card instance).
-
-#### Creating a template
-Two paths:
-1. **From scratch** — In the board header, a new "Templates" button opens the **Template Manager** modal. A "New template" form collects name, description, severity, priority, and checklist items.
-2. **Save current card as template** — Card detail menu (⋯) has a "Save as template" option. Opens a prompt for the template name; all relevant fields are pre-filled from the current card.
-
-#### Using a template
-- Every column's **"+ Add card"** button shows a secondary **"Use template ▾"** dropdown next to the quick-add input (visible on hover).
-- Clicking the dropdown lists all board templates by name.
-- Selecting a template opens the full card detail modal (not quick-add) with all template fields pre-populated. The user completes any remaining fields and saves.
-
-#### Template management
-- **Template Manager** modal accessible from the board header ("Templates" button, visible to Team + Owner).
-- Lists all templates for the current board as cards: name, severity badge, description preview, checklist count.
-- Actions per template: **Edit** (opens edit form), **Delete** (confirmation required), **Use** (opens new card modal with template pre-filled).
-- Clients cannot see or use templates.
-
-#### Data model addition
-New entity: **`CardTemplate`**
-
-| Field | Type | Notes |
-|-------|------|-------|
-| id | BIGINT PK | |
-| board_id | FK → Board | |
-| name | VARCHAR(255) | Required |
-| description | TEXT | Optional — Markdown |
-| severity | ENUM nullable | critical / high / medium / low |
-| priority | ENUM nullable | urgent / high / normal / low |
-| checklist_json | JSON | Array of `{text: string}` objects |
-| created_by_id | FK → User | |
-| created_at | DATETIME UTC | |
-| updated_at | DATETIME UTC | |
-
-#### API endpoints
-- `GET /api/v1/boards/:id/templates` — list all templates for a board (member access, client excluded).
-- `POST /api/v1/boards/:id/templates` — create a template (team + owner only).
-- `PATCH /api/v1/boards/:id/templates/:tid` — update a template (team + owner only).
-- `DELETE /api/v1/boards/:id/templates/:tid` — delete a template (team + owner only).
-
----
-
-### 5.24 Command Palette (Phase 14)
-
-A floating, keyboard-driven launcher accessible from anywhere in the app via `Cmd+K` (macOS) / `Ctrl+K` (Windows/Linux).
-
-#### Trigger & dismiss
-- Opens with `Cmd+K` / `Ctrl+K` from any screen (board view, my boards, admin panel, notifications, etc.).
-- Dismisses with `Esc` or clicking the backdrop overlay.
-- Disabled when focus is inside a text editor (description, comment composer).
-
-#### Layout
-- Full-screen backdrop (dark, semi-transparent).
-- Centered panel: max-width 560px, dark themed, rounded corners, shadow.
-- Search input at top (auto-focused on open) with a keyboard icon label.
-- Scrollable results list below the input; max height ~60vh.
-
-#### Search & results
-Results appear as the user types (debounced 150ms). Results grouped into sections:
-
-| Section | Content | When shown |
-|---------|---------|-----------|
-| **Recent** | Last 10 visited boards and cards (stored in `localStorage` as `bt_recent_items`) | When input is empty |
-| **Boards** | All boards the user is a member of, fuzzy-matched on board name | When input ≥ 1 char |
-| **Cards** | Cards the user has access to, fuzzy-matched on title (API call, debounced 200ms) | When input ≥ 2 chars |
-| **Actions** | Fixed shortcut actions (see table below) | Always shown, filtered by input |
-
-Fixed actions always available:
-
-| Label | Action |
-|-------|--------|
-| New card | Focuses the first column quick-add on the current board |
-| Go to My Boards | Navigates to `/boards` |
-| Go to Notifications | Navigates to `/notifications` |
-| Open Archive | Navigates to `/board/:id/archive` (current board) |
-| Open Reports | Navigates to `/board/:id/reports` (current board) |
-| Open Keyboard Shortcuts | Opens the `?` overlay |
-
-#### Keyboard navigation
-- `↑` / `↓` — move highlight through results.
-- `Enter` — execute highlighted item.
-- Result items show a right-arrow icon on hover/highlight.
-- Each item shows: icon, primary label, secondary context (board name for cards, member count for boards).
-
-#### Recent item tracking
-- Every time a user opens a board or card modal, the item is prepended to `bt_recent_items` in `localStorage`.
-- List is capped at 10 items; duplicates are removed before prepending.
-- Recent items are the first results shown when the palette opens with an empty input.
-
-#### Implementation notes
-- Pure frontend — no new API endpoint beyond the existing card search endpoint.
-- Fuzzy matching on boards is client-side (boards list already loaded in `authStore` or fetched once).
-- Card search calls `GET /api/v1/search?q=&per_page=8` with the existing search endpoint.
-- Command palette state is a single `useState(open)` hoisted to `App.jsx`; child components call `openPalette()` via context or a module-level event.
-
----
-
-### 5.25 SLA Rules Engine (Phase 14)
-
-Per-board Service Level Agreement rules that automatically assign due dates based on severity and visually flag approaching or breached SLA windows on card faces and the stats bar.
-
-#### SLA rule definition
-- Configured per board by the Board Owner in a new **"SLA Rules"** panel accessible from the board header (⚙ Settings → SLA Rules).
-- Each rule defines: `severity` (Critical / High / Medium / Low) → `hours_to_resolve` (integer, e.g. 24).
-- A board can have up to 4 rules (one per severity level). Rules can be saved, edited, or deleted.
-- SLA rules are optional — boards without any rules behave exactly as before.
-
-| Default suggested rules | Hours |
-|------------------------|-------|
-| Critical | 24 |
-| High | 72 |
-| Medium | 168 (7 days) |
-| Low | 336 (14 days) |
-
-#### Auto-due-date on card creation
-- When a new card is created with a `severity` set and **no due date** provided, the backend checks for an active SLA rule matching that severity on the card's board.
-- If a matching rule exists: `due_date = created_at + hours_to_resolve`.
-- If the user explicitly sets a due date, the SLA rule is ignored for that card.
-- The auto-set due date is recorded in card activity history: "Due date auto-set from SLA rule (Critical: 24h)."
-
-#### SLA status on card face
-A small clock icon appears on the card face alongside priority/severity indicators:
-
-| State | Icon colour | Condition |
-|-------|------------|-----------|
-| On track | Hidden | More than 20% of SLA window remaining |
-| Warning | Amber `#ff991f` | Within the last 20% of SLA window and card not closed |
-| Breached | Red `#de350b` | Past due_date and card not in a closed column |
-
-SLA warning/breach is calculated from `created_at` and the SLA rule hours, not just the `due_date` field — so manually-set due dates don't interfere with SLA tracking.
-
-#### Stats bar integration
-- The board stats bar (§5.19) gains a new chip: **"SLA breached (n)"** shown in red when n > 0.
-- Clicking the chip applies a filter: cards that are SLA-breached (past their SLA deadline and not closed).
-
-#### Notifications
-- When a card enters the warning window (last 20% of SLA time), a notification is sent to all card assignees: "Card '[title]' SLA deadline approaching — due in [X]h."
-- When a card breaches SLA, a notification is sent to all assignees and the Board Owner: "SLA breached: '[title]' — [severity], [X]h overdue."
-- SLA notifications are separate from the regular overdue notification and have their own event group in notification preferences.
-
-#### Data model additions
-New entity: **`SLARule`**
-
-| Field | Type | Notes |
-|-------|------|-------|
-| id | BIGINT PK | |
-| board_id | FK → Board | |
-| severity | ENUM | critical / high / medium / low |
-| hours_to_resolve | INT | Must be ≥ 1 |
-| created_at | DATETIME UTC | |
-| updated_at | DATETIME UTC | |
-
-Unique constraint: `(board_id, severity)` — one rule per severity per board.
-
-#### API endpoints
-- `GET /api/v1/boards/:id/sla-rules` — list all SLA rules for a board (member access).
-- `POST /api/v1/boards/:id/sla-rules` — create or upsert a rule (owner only).
-- `PATCH /api/v1/boards/:id/sla-rules/:rule_id` — update hours (owner only).
-- `DELETE /api/v1/boards/:id/sla-rules/:rule_id` — delete a rule (owner only).
-
----
-
-### 5.26 Email Digests (Phase 14)
-
-Scheduled summary emails that keep stakeholders informed about board activity without requiring them to log in.
-
-#### Digest content
-Each digest email covers the boards the recipient is a member of (or a specific board if configured per-board). The email contains:
-
-| Section | Content |
-|---------|---------|
-| **Overdue bugs assigned to me** | Cards past their due date, not closed, assigned to the recipient |
-| **Newly assigned to me** | Cards assigned to the recipient since the last digest |
-| **My cards with new activity** | Cards the recipient is assigned to that received a comment or field change since last digest |
-| **Board snapshot** | Per-board summary: total open, critical count, resolved since last digest |
-
-Email format: HTML (branded with accent colour, dark header) + plain-text fallback.
-
-#### Digest frequency options
-- **Daily** — sent at a configurable time (default: 08:00 in the user's timezone, falling back to UTC+1).
-- **Weekly** — sent every Monday at the same configurable time.
-- **Off** — no digests sent (default for existing users; opt-in).
-
-#### User preference settings
-Digest preferences are configurable per user in **Profile → Notification Settings** (added to the existing preference page):
-
-- **Digest frequency**: Off / Daily / Weekly (radio/select).
-- **Send time**: hour selector (00:00–23:00, one-hour intervals), displayed in browser local time.
-- Changes take effect from the next scheduled digest run.
-
-#### Backend
-- New `DigestPreference` entity stores user preferences.
-- `GET /api/v1/users/me/digest-prefs` — return current prefs.
-- `PATCH /api/v1/users/me/digest-prefs` — update frequency and send time.
-- `POST /api/v1/digest/trigger` (Super Admin only) — manually trigger a digest run for testing. Accepts optional `user_id` and `force: true` to bypass the "active session" suppression.
-- `digest_service.py` — queries overdue/assigned/active cards per user, renders the email template, and dispatches via `email_service.py`.
-
-#### Delivery rules
-- Digest is not sent if the user has had an active session (logged in) in the last 2 hours — they've already seen the activity.
-- If a user has no relevant content (nothing overdue, no new assignments, no new activity), the digest is skipped silently.
-- Digest emails are marked with `List-Unsubscribe` headers for spam compliance (DSGVO).
-
-#### Data model additions
-New entity: **`DigestPreference`**
-
-| Field | Type | Notes |
-|-------|------|-------|
-| id | BIGINT PK | |
-| user_id | FK → User | Unique (one row per user) |
-| frequency | ENUM | off / daily / weekly |
-| send_hour | TINYINT | 0–23, UTC hour |
-| last_sent_at | DATETIME UTC | Updated after each successful dispatch |
-| created_at | DATETIME UTC | |
-| updated_at | DATETIME UTC | |
-
 ---
 
 ## 6. Integrations
@@ -1226,6 +765,7 @@ Separate section of the app accessible only to Super Admins. Board owners and me
 - **User management:** view all registered users, create new admin/user accounts, deactivate/reactivate accounts, reset passwords (send reset email).
 - **Board member limits:** set the maximum number of members allowed per board (global default + per-board override).
 - **Invite management:** view pending invites platform-wide, revoke any invite.
+\
 - **Platform overview:** total boards, total users, total bugs (read-only stats).
 
 ### 7.2 Admin cannot
@@ -1241,7 +781,7 @@ Core entities:
 
 | Entity | Key fields |
 |--------|-----------|
-| **User** | id, name, email, password_hash, global_role (super_admin / user), avatar_path, initials_colour, is_active, is_verified, email_otp_hash, email_otp_expires_at, email_otp_attempts, totp_secret_encrypted, two_fa_enabled, backup_codes_hash, plan_id (FK), locked_until, password_reset_token, password_reset_expires, created_at |
+| **User** | id, name, email, password_hash, global_role (super_admin / user), avatar_path, initials_colour, is_active, password_reset_token, password_reset_expires, created_at |
 | **UserNotificationPrefs** | user_id, event_type, channel (email / in_app / both / off) |
 | **Board** | id, name, owner_id, timezone, member_limit, created_at |
 | **BoardMembership** | user_id, board_id, role (owner / team / client), invited_by, joined_at |
@@ -1266,15 +806,6 @@ Core entities:
 | **Integration** | id, board_id, type (clickup/github/gitlab), config_json (encrypted), auto_push |
 | **ExternalRef** | id, card_id, integration_type, external_id, external_url, pushed_at, push_status |
 | **Notification** | id, user_id, type, card_id (nullable), board_id (nullable), message, is_read, created_at |
-| **SLARule** *(Phase 14)* | id, board_id, severity (critical/high/medium/low), hours_to_resolve, created_at, updated_at — unique(board_id, severity) |
-| **DigestPreference** *(Phase 14)* | id, user_id (unique FK), frequency (off/daily/weekly), send_hour (0–23 UTC), last_sent_at, created_at, updated_at |
-| **CardWatcher** *(Phase 15)* | id, card_id, user_id, created_at — unique(card_id, user_id) |
-| **CardTemplate** *(Phase 15)* | id, board_id, name, description, severity (nullable), priority (nullable), checklist_json, created_by_id, created_at, updated_at |
-| **Plan** *(Phase 0)* | id, name (free/pro/business/enterprise), display_name, price_monthly, price_yearly, is_active |
-| **PlanFeatureFlag** *(Phase 0)* | id, plan_id, feature_key, is_enabled, limit_value (nullable) |
-| **SystemConfig** *(Phase 0)* | id, config_key (unique), config_value (JSON text), updated_by_id, updated_at |
-| **LoginAttempt** *(Phase 0)* | id, email, ip_address, success, attempted_at |
-| **AdminAuditLog** *(Phase 0)* | id, admin_id, action, target_type, target_id (nullable), detail_json, performed_at |
 
 > ⚠️ Integration tokens in `config_json` must be **encrypted at rest**. Never returned to the frontend. Critical for DSGVO compliance given German client data.
 
@@ -1359,12 +890,6 @@ Core entities:
 - Date/time auto-display throughout
 - `source` field (internal vs client) on all cards
 
-- **Card watchers** (Phase 15) — watch/unwatch any card, eye icon + count on card face, watchers notified of all card activity, watcher list in card detail
-- **Card templates** (Phase 15) — per-board reusable templates (name, description, severity, priority, checklist items), template manager modal, "Use template" dropdown on column add, save-as-template from card
-- **Command palette** (Phase 14) — `Cmd+K` / `Ctrl+K` fuzzy launcher: boards, cards, actions, recent items
-- **SLA rules engine** (Phase 14) — per-board severity→hours rules, auto-due-date on card create, amber/red clock icon on card face, SLA breached chip in stats bar, SLA approaching/breached notifications
-- **Email digests** (Phase 14) — daily/weekly opt-in digest emails: overdue assigned, newly assigned, boards snapshot, per-user frequency + send-hour preference, manual trigger endpoint
-
 **Out of scope (Phase 2+):**
 - Two-way sync with ClickUp/Git
 - Slack notifications
@@ -1372,7 +897,7 @@ Core entities:
 - SSO / SAML
 - Native mobile apps
 - Billing / subscription management
-- WebSocket real-time updates (polling used for MVP — WebSockets implemented separately)
+- WebSocket real-time updates (polling used for MVP)
 
 ---
 
@@ -1389,11 +914,7 @@ Core entities:
 | 7 | Project name | BugTrack (placeholder) | ⬜ |
 | 8 | Screenshot capture | Upload-only for MVP | ⬜ |
 | 9 | Timezone default | UTC+1 (German clients) | ⬜ |
-| 10 | Public signup | Allowed from landing/pricing page | ✅ |
-| 11 | 2FA method | Optional TOTP + email OTP fallback + 10 backup codes | ✅ |
-| 12 | In-app payments | Not in MVP — pricing CTAs link to contact/sales email | ✅ |
-| 13 | Pricing tiers | Free / Pro / Business / Enterprise | ⬜ (pricing TBD) |
 
 ---
 
-*Last updated: Jun 13, 2026 — v1.1 · Phase 0 added: Landing, Pricing, Upgrade, Email OTP, 2FA, Plans, SystemConfig, AdminAuditLog, LoginAttempt lockout*
+*Next step after sign-off: low-fidelity wireframes / design, then Claude Code project setup with CLAUDE.md.*

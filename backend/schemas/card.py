@@ -39,6 +39,7 @@ class CardUpdate(BaseModel):
     start_date: Optional[datetime] = None
     cover_image_url: Optional[str] = None
     list_id: Optional[int] = None
+    is_complete: Optional[bool] = None
 
 
 class CardMove(BaseModel):
@@ -80,8 +81,12 @@ class CardFace(BaseModel):
     cover_image_url: Optional[str] = None
     is_archived: bool
     is_deleted: bool
+    is_complete: bool = False
     created_by_id: Optional[int] = None
+    created_by_name: Optional[str] = None
     created_at: datetime
+    updated_at: Optional[datetime] = None
+    list_name: Optional[str] = None
     labels: PyList[LabelMiniOut] = []
     assignees: PyList[AssigneeMiniOut] = []
     meta: Optional[CardMetaOut] = None

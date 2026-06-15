@@ -1,5 +1,10 @@
 import client from "./client";
 
+export const searchUsers = (q, boardId) =>
+  client
+    .get("/users/search", { params: { q, board_id: boardId, limit: 8 } })
+    .then((r) => r.data);
+
 export const getMyBoards = () => client.get("/boards").then((r) => r.data);
 export const getBoards = getMyBoards;
 
@@ -9,11 +14,23 @@ export const createBoard = (data) =>
 export const getBoard = (id) =>
   client.get(`/boards/${id}`).then((r) => r.data);
 
+export const getBoardBySlug = (slug) =>
+  client.get(`/boards/by-slug/${slug}`).then((r) => r.data);
+
 export const updateBoard = (id, data) =>
   client.patch(`/boards/${id}`, data).then((r) => r.data);
 
 export const archiveBoard = (id) =>
   client.post(`/boards/${id}/archive`).then((r) => r.data);
+
+export const restoreBoard = (id) =>
+  client.post(`/boards/${id}/restore`).then((r) => r.data);
+
+export const getArchivedBoards = () =>
+  client.get("/boards/archived").then((r) => r.data);
+
+export const deleteBoard = (id) =>
+  client.delete(`/boards/${id}`).then((r) => r.data);
 
 // Members
 export const getBoardMembers = (boardId) =>
@@ -35,6 +52,9 @@ export const getBoardInvites = (boardId) =>
   client.get(`/boards/${boardId}/invites`).then((r) => r.data);
 
 // Invite accept (no auth required — handled by server)
+export const getInviteInfo = (token) =>
+  client.get(`/invite/info?token=${encodeURIComponent(token)}`).then((r) => r.data);
+
 export const acceptInvite = (token, full_name, password) =>
   client
     .post("/invite/accept", { token, full_name, password })

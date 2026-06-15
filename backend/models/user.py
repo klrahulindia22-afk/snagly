@@ -43,9 +43,19 @@ class User(Base):
     two_fa_enabled = Column(Boolean, nullable=False, default=False)
     backup_codes_hash = Column(Text, nullable=True)  # JSON array of bcrypt hashes
 
-    # Phase 0 — plan + lockout
-    plan_id = Column(BIGINT(unsigned=True), ForeignKey("plans.id"), nullable=True)
+    # Phase 0 — lockout
     locked_until = Column(DateTime, nullable=True)
+    password_changed_at = Column(DateTime, nullable=True)
+    current_refresh_jti = Column(String(36), nullable=True)
+
+    # Phase 16 — active subscription (nullable = free tier) + storage quota tracking
+    subscription_id = Column(
+        BIGINT(unsigned=True),
+        ForeignKey("subscriptions.id", use_alter=True, name="fk_users_subscription_id"),
+        nullable=True,
+        index=True,
+    )
+    storage_used_bytes = Column(BIGINT(unsigned=True), nullable=False, default=0)
 
     digest_preference = relationship("DigestPreference", back_populates="user", uselist=False, cascade="all, delete-orphan")
-    plan = relationship("Plan", foreign_keys=[plan_id])
+    subscription = relationship("Subscription", foreign_keys=[subscription_id], primaryjoin="User.subscription_id == Subscription.id")

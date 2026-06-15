@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     APP_SECRET_KEY: str = "change-me-in-production"
     APP_ENV: str = "development"
     FRONTEND_URL: str = "http://localhost:5173"
+    ADMIN_URL:    str = "http://localhost:5174"
 
     DB_URL: str = "mysql+aiomysql://bugtrack:password@localhost:3306/bugtrack"
 
@@ -34,6 +35,25 @@ class Settings(BaseSettings):
     # Login lockout
     LOGIN_MAX_ATTEMPTS: int = 5
     LOGIN_LOCKOUT_MINUTES: int = 30
+
+    # Stripe
+    STRIPE_SECRET_KEY: str = ""
+    STRIPE_PUBLISHABLE_KEY: str = ""
+    STRIPE_WEBHOOK_SECRET: str = ""
+    STRIPE_CURRENCY: str = "USD"
+
+    # Razorpay
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
+    RAZORPAY_WEBHOOK_SECRET: str = ""
+    RAZORPAY_CURRENCY: str = "INR"
+
+    # Payment gateway routing
+    PAYMENT_GATEWAY_IN: str = "razorpay"
+    PAYMENT_GATEWAY_DEFAULT: str = "stripe"
+
+    # Subscription grace period
+    SUBSCRIPTION_GRACE_PERIOD_DAYS: int = 7
 
     model_config = {"env_file": ".env"}
 

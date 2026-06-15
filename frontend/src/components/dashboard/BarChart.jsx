@@ -9,9 +9,10 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import useThemeStore from "../../stores/themeStore";
 
 const FALLBACK_COLORS = [
-  "#0f9e8e", "#4ecdc4", "#f2d600", "#ff991f", "#61bd4f", "#de350b", "#8993a4",
+  "#6c63ff", "#4ecdc4", "#f2d600", "#ff991f", "#61bd4f", "#de350b", "#8993a4",
 ];
 
 export default function BarChart({
@@ -23,13 +24,22 @@ export default function BarChart({
   coloredBars = false,
   colorKey,
 }) {
+  const isDark = useThemeStore((s) => s.isDark);
   const isEmpty = !data || data.length === 0;
 
+  const tickColor = isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.35)";
+  const gridColor = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
+  const tooltipBg = isDark ? "#1e2840" : "#ffffff";
+  const tooltipBorder = isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.12)";
+  const tooltipLabel = isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)";
+  const tooltipItem = isDark ? "#fff" : "#172b4d";
+  const legendColor = isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.55)";
+
   return (
-    <div className="bg-[#1e2435] border border-white/10 rounded-2xl p-5 flex flex-col gap-3">
-      {title && <p className="text-white/60 text-xs font-medium uppercase tracking-wide">{title}</p>}
+    <div style={{ background:"var(--modal-bg)", border:"1px solid var(--border)", borderRadius:16, padding:20, display:"flex", flexDirection:"column", gap:12 }}>
+      {title && <p style={{ color:"var(--text-muted)", fontSize:11, fontWeight:500, textTransform:"uppercase", letterSpacing:.6, margin:0 }}>{title}</p>}
       {isEmpty ? (
-        <div className="flex items-center justify-center h-40 text-white/20 text-sm">No data</div>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:160, color:"var(--text-muted)", fontSize:13 }}>No data</div>
       ) : (
         <ResponsiveContainer width="100%" height={220}>
           <ReBarChart
@@ -37,33 +47,33 @@ export default function BarChart({
             layout={horizontal ? "vertical" : "horizontal"}
             margin={{ top: 4, right: 8, bottom: 4, left: horizontal ? 80 : 0 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+            <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
             {horizontal ? (
               <>
-                <XAxis type="number" tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey={nameKey} tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} width={80} />
+                <XAxis type="number" tick={{ fill: tickColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey={nameKey} tick={{ fill: tickColor, fontSize: 10 }} axisLine={false} tickLine={false} width={80} />
               </>
             ) : (
               <>
-                <XAxis dataKey={nameKey} tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                <XAxis dataKey={nameKey} tick={{ fill: tickColor, fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: tickColor, fontSize: 10 }} axisLine={false} tickLine={false} />
               </>
             )}
             <Tooltip
-              contentStyle={{ background: "#1e2435", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, fontSize: 12 }}
-              itemStyle={{ color: "#fff" }}
-              labelStyle={{ color: "rgba(255,255,255,0.5)" }}
+              contentStyle={{ background: tooltipBg, border: `1px solid ${tooltipBorder}`, borderRadius: 10, fontSize: 12 }}
+              itemStyle={{ color: tooltipItem }}
+              labelStyle={{ color: tooltipLabel }}
             />
             {bars && bars.length > 1 && (
               <Legend
                 iconType="square"
                 iconSize={8}
                 formatter={(value) => (
-                  <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 11 }}>{value}</span>
+                  <span style={{ color: legendColor, fontSize: 11 }}>{value}</span>
                 )}
               />
             )}
-            {(bars || [{ dataKey: "count", color: "#0f9e8e" }]).map((bar, idx) => (
+            {(bars || [{ dataKey: "count", color: "#6c63ff" }]).map((bar, idx) => (
               <Bar
                 key={bar.dataKey}
                 dataKey={bar.dataKey}

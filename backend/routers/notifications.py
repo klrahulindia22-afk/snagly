@@ -26,6 +26,8 @@ def _notif_text(type_: str, creator_name: str) -> str:
         "join_request_declined": "Your join request was declined",
         "card_overdue": "A card assigned to you is overdue",
         "push_failed": "An integration push failed",
+        "board_archived": f"{creator_name} archived the board — you no longer have access",
+        "board_restored": f"{creator_name} restored the board — you can access it again",
     }
     return texts.get(type_, f"{creator_name} triggered a notification")
 
@@ -140,6 +142,8 @@ class PrefsUpdate(BaseModel):
     in_app_reply: Optional[bool] = None
     in_app_card_assigned: Optional[bool] = None
     in_app_join_request: Optional[bool] = None
+    in_app_board_archived: Optional[bool] = None
+    in_app_board_restored: Optional[bool] = None
     email_mention: Optional[bool] = None
     email_comment: Optional[bool] = None
     email_reply: Optional[bool] = None
@@ -155,6 +159,8 @@ def _prefs_out(prefs: UserNotificationPrefs) -> dict:
         "in_app_reply": prefs.in_app_reply,
         "in_app_card_assigned": prefs.in_app_card_assigned,
         "in_app_join_request": prefs.in_app_join_request,
+        "in_app_board_archived": prefs.in_app_board_archived,
+        "in_app_board_restored": prefs.in_app_board_restored,
         "email_mention": prefs.email_mention,
         "email_comment": prefs.email_comment,
         "email_reply": prefs.email_reply,

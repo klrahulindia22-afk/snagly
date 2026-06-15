@@ -17,6 +17,8 @@ class UserNotificationPrefs(Base):
     in_app_reply = Column(Boolean, nullable=False, default=True)
     in_app_card_assigned = Column(Boolean, nullable=False, default=True)
     in_app_join_request = Column(Boolean, nullable=False, default=True)
+    in_app_board_archived = Column(Boolean, nullable=False, default=True)
+    in_app_board_restored = Column(Boolean, nullable=False, default=True)
 
     # Email toggles
     email_mention = Column(Boolean, nullable=False, default=True)

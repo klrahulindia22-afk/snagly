@@ -50,6 +50,47 @@
   }
 }
 
+/* Board / app theme tokens — overridden in dark mode */
+:root {
+  --col-bg: #ebecf0;
+  --card-bg: #ffffff;
+  --card-shadow: 0 1px 3px rgba(9,30,66,.12),0 0 0 1px rgba(9,30,66,.08);
+  --text-primary: #172b4d;
+  --text-secondary: #5e6c84;
+  --text-muted: #8993a4;
+  --border: #dfe1e6;
+  --input-bg: #f4f5f7;
+  --input-bg-focus: #ffffff;
+  --input-bg-hover: #dfe1e6;
+  --input-border: #dfe1e6;
+  --modal-bg: #ffffff;
+  --modal-sidebar-bg: #f4f5f7;
+  --comment-bubble: #f4f5f7;
+  --col-btn-text: rgba(9,30,66,.6);
+  --col-btn-hover-bg: rgba(9,30,66,.08);
+  --app-bg: #1d7a5f;
+}
+
+html.dark {
+  --col-bg: #1e2840;
+  --card-bg: #253150;
+  --card-shadow: 0 1px 3px rgba(0,0,0,.4),0 0 0 1px rgba(0,0,0,.3);
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border: #374162;
+  --input-bg: #1a2540;
+  --input-bg-focus: #253150;
+  --input-bg-hover: #2d3a56;
+  --input-border: #374162;
+  --modal-bg: #1e2840;
+  --modal-sidebar-bg: #162035;
+  --comment-bubble: #253150;
+  --col-btn-text: rgba(255,255,255,.5);
+  --col-btn-hover-bg: rgba(255,255,255,.08);
+  --app-bg: #0f172a;
+}
+
 body {
   margin: 0;
 }

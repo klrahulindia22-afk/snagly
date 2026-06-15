@@ -17,7 +17,7 @@ const INIT_CARDS = [
     title: 'Checkout crashes on PayPal 3DS redirect',
     labels: [{ text: 'Critical', color: '#eb5a46' }, { text: 'Frontend', color: '#c377e0' }],
     priority: 'urgent', cover: 'linear-gradient(135deg,#eb5a46 0%,#c377e0 100%)',
-    avatars: ['#0f9e8e', '#a25afd'], initials: ['NM', 'GA'],
+    avatars: ['#6c63ff', '#a25afd'], initials: ['NM', 'GA'],
     overdue: '2d overdue',
     checklist: [
       { text: 'Reproduce on staging', done: true },
@@ -93,9 +93,9 @@ const PRIORITY_LABEL = { urgent: 'Urgent', high: 'High', normal: 'Normal', low: 
 
 // ── Filter demo data ──────────────────────────────────────────
 const FILTER_CARDS = [
-  { id: 'f1', title: 'PayPal 3DS redirect crashes checkout', priority: 'urgent', label: 'Frontend', assignee: 'NM', color: '#0f9e8e', overdue: true },
+  { id: 'f1', title: 'PayPal 3DS redirect crashes checkout', priority: 'urgent', label: 'Frontend', assignee: 'NM', color: '#6c63ff', overdue: true },
   { id: 'f2', title: 'Mobile nav overlaps hero on iPhone SE', priority: 'high', label: 'UI', assignee: 'GA', color: '#a25afd', overdue: false },
-  { id: 'f3', title: 'Login 404 after password reset click', priority: 'urgent', label: 'Auth', assignee: 'NM', color: '#0f9e8e', overdue: true },
+  { id: 'f3', title: 'Login 404 after password reset click', priority: 'urgent', label: 'Auth', assignee: 'NM', color: '#6c63ff', overdue: true },
   { id: 'f4', title: 'og:locale missing on product pages', priority: 'normal', label: 'SEO', assignee: 'PR', color: '#de350b', overdue: false },
   { id: 'f5', title: 'Cookie banner overlaps contact form', priority: 'high', label: 'UI', assignee: 'GA', color: '#a25afd', overdue: false },
 ]
@@ -129,14 +129,14 @@ function MiniCard({ card, onClick, hint }) {
         background: '#fff', borderRadius: 3, marginBottom: 6, boxShadow: SHADOW,
         overflow: 'hidden', cursor: 'pointer', fontFamily: F,
         transform: hov ? 'translateY(-1px)' : 'none',
-        boxShadow: hov ? '0 4px 12px rgba(9,30,66,.18),0 0 0 2px #0f9e8e' : SHADOW,
+        boxShadow: hov ? '0 4px 12px rgba(9,30,66,.18),0 0 0 2px #6c63ff' : SHADOW,
         transition: 'all .15s ease',
         position: 'relative',
       }}
     >
       {hint && hov && (
         <div style={{
-          position: 'absolute', top: 4, right: 4, background: '#0f9e8e', color: '#fff',
+          position: 'absolute', top: 4, right: 4, background: '#6c63ff', color: '#fff',
           fontSize: 9, fontWeight: 700, borderRadius: 3, padding: '2px 5px', letterSpacing: .3,
         }}>Click to open</div>
       )}
@@ -221,7 +221,7 @@ function CardPanel({ card, checks, onCheck, pushState, onPush, onClose }) {
           </div>
           {/* Progress bar */}
           <div style={{ height: 4, background: '#ebecf0', borderRadius: 2, marginBottom: 8, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${pct}%`, background: pct === 100 ? '#61bd4f' : '#0f9e8e', borderRadius: 2, transition: 'width .3s ease' }} />
+            <div style={{ height: '100%', width: `${pct}%`, background: pct === 100 ? '#61bd4f' : '#6c63ff', borderRadius: 2, transition: 'width .3s ease' }} />
           </div>
           {card.checklist.map((item, idx) => {
             const key = `${card.id}_${idx}`
@@ -233,8 +233,8 @@ function CardPanel({ card, checks, onCheck, pushState, onPush, onClose }) {
                 style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '4px 0', cursor: 'pointer' }}
               >
                 <div style={{
-                  width: 14, height: 14, borderRadius: 2, border: `2px solid ${checked ? '#0f9e8e' : '#dfe1e6'}`,
-                  background: checked ? '#0f9e8e' : '#fff', flexShrink: 0, marginTop: 1,
+                  width: 14, height: 14, borderRadius: 2, border: `2px solid ${checked ? '#6c63ff' : '#dfe1e6'}`,
+                  background: checked ? '#6c63ff' : '#fff', flexShrink: 0, marginTop: 1,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all .15s',
                 }}>
                   {checked && <span style={{ color: '#fff', fontSize: 9, fontWeight: 900 }}>✓</span>}
@@ -354,7 +354,7 @@ function FilterDemo() {
       <div style={{ height: 1, background: '#ebecf0', marginBottom: 10 }} />
       <div style={{ fontSize: 11, color: '#5e6c84', marginBottom: 8 }}>
         Showing <strong style={{ color: '#172b4d' }}>{filtered.length}</strong> of {FILTER_CARDS.length} cards
-        {active.size > 0 && <button onClick={() => setActive(new Set())} style={{ marginLeft: 8, fontSize: 10, color: '#0f9e8e', background: 'none', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 700 }}>Clear all</button>}
+        {active.size > 0 && <button onClick={() => setActive(new Set())} style={{ marginLeft: 8, fontSize: 10, color: '#6c63ff', background: 'none', border: 'none', cursor: 'pointer', fontFamily: F, fontWeight: 700 }}>Clear all</button>}
       </div>
       <div style={{ maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 5 }}>
         {filtered.map(c => (
@@ -420,7 +420,7 @@ function PushDemo() {
                 <div style={{ fontSize: 10, color: '#5e6c84' }}>{desc}</div>
               </div>
               {st === 'idle' && (
-                <button onClick={() => push(key)} style={{ height: 28, padding: '0 12px', background: '#0f9e8e', color: '#fff', border: 'none', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: F }}>Push →</button>
+                <button onClick={() => push(key)} style={{ height: 28, padding: '0 12px', background: '#6c63ff', color: '#fff', border: 'none', borderRadius: 4, fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: F }}>Push →</button>
               )}
               {st === 'loading' && (
                 <span style={{ fontSize: 11, color: '#5e6c84', fontWeight: 600 }}>Pushing…</span>
@@ -559,12 +559,12 @@ export default function LandingPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Link to="/pricing" style={{ color: 'rgba(255,255,255,.8)', fontSize: 13, textDecoration: 'none', padding: '6px 10px', borderRadius: 4 }}>Pricing</Link>
           <Link to="/login" style={{ color: 'rgba(255,255,255,.85)', fontSize: 13, textDecoration: 'none', padding: '6px 10px', borderRadius: 4, background: 'rgba(255,255,255,.15)' }}>Log in</Link>
-          <Link to="/signup" style={{ color: '#fff', fontSize: 13, fontWeight: 700, textDecoration: 'none', padding: '7px 16px', borderRadius: 4, background: '#0f9e8e' }}>Start free</Link>
+          <Link to="/signup" style={{ color: '#fff', fontSize: 13, fontWeight: 700, textDecoration: 'none', padding: '7px 16px', borderRadius: 4, background: '#6c63ff' }}>Start free</Link>
         </div>
       </nav>
 
       {/* ── Hero — 2-col layout ── */}
-      <section style={{ background: 'linear-gradient(160deg,#052f2a 0%,#0a4a42 60%,#0f9e8e 100%)', padding: '56px 24px 0', color: '#fff' }}>
+      <section style={{ background: 'linear-gradient(160deg,#052f2a 0%,#0a4a42 60%,#6c63ff 100%)', padding: '56px 24px 0', color: '#fff' }}>
         <div style={{ maxWidth: 1140, margin: '0 auto', display: 'grid', gridTemplateColumns: 'minmax(300px,420px) 1fr', gap: 48, alignItems: 'start' }}>
 
           {/* Left: text */}
@@ -684,8 +684,8 @@ export default function LandingPage() {
               <button key={t.id} onClick={() => setFeatureTab(t.id)} style={{
                 padding: '10px 16px', fontSize: 13, fontWeight: 700, fontFamily: F,
                 background: 'none', border: 'none', cursor: 'pointer',
-                color: featureTab === t.id ? '#0f9e8e' : '#5e6c84',
-                borderBottom: featureTab === t.id ? '2px solid #0f9e8e' : '2px solid transparent',
+                color: featureTab === t.id ? '#6c63ff' : '#5e6c84',
+                borderBottom: featureTab === t.id ? '2px solid #6c63ff' : '2px solid transparent',
                 marginBottom: -2, whiteSpace: 'nowrap', transition: 'color .15s',
               }}>{t.label}</button>
             ))}
@@ -715,7 +715,7 @@ export default function LandingPage() {
                   ['Client-scoped board access', featureTab === 'meta'],
                 ].map(([text, active]) => (
                   <div key={text} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: active ? '#0a4a42' : '#5e6c84' }}>
-                    <span style={{ color: active ? '#0f9e8e' : '#dfe1e6', fontWeight: 700, fontSize: 15 }}>✓</span>
+                    <span style={{ color: active ? '#6c63ff' : '#dfe1e6', fontWeight: 700, fontSize: 15 }}>✓</span>
                     <span style={{ fontWeight: active ? 700 : 400 }}>{text}</span>
                   </div>
                 ))}
@@ -741,7 +741,7 @@ export default function LandingPage() {
                         <span style={{ color: '#172b4d', fontFamily: "'SF Mono','Consolas',monospace", fontSize: 10 }}>{v}</span>
                       </div>
                     ))}
-                    <div style={{ fontSize: 10, color: '#0f9e8e', fontWeight: 700, textAlign: 'center', marginTop: 4 }}>✓ Zero additional steps for the reporter</div>
+                    <div style={{ fontSize: 10, color: '#6c63ff', fontWeight: 700, textAlign: 'center', marginTop: 4 }}>✓ Zero additional steps for the reporter</div>
                   </div>
                 </div>
               )}
@@ -763,7 +763,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── CTA ── */}
-      <section style={{ background: 'linear-gradient(135deg,#0a4a42,#0f9e8e)', padding: '64px 24px', textAlign: 'center' }}>
+      <section style={{ background: 'linear-gradient(135deg,#0a4a42,#6c63ff)', padding: '64px 24px', textAlign: 'center' }}>
         <h2 style={{ fontSize: 30, fontWeight: 800, color: '#fff', marginBottom: 12, letterSpacing: -.5 }}>
           Ready to ship fewer bugs?
         </h2>

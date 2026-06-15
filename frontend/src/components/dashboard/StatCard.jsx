@@ -1,17 +1,20 @@
 export default function StatCard({ label, value, sub, icon, accent }) {
   return (
     <div
-      className="bg-[#1e2435] border border-white/10 rounded-2xl px-5 py-4 flex flex-col gap-1"
-      style={accent ? { borderLeftColor: accent, borderLeftWidth: 3 } : {}}
+      style={{
+        background:"var(--modal-bg)", border:"1px solid var(--border)", borderRadius:16,
+        padding:"16px 20px", display:"flex", flexDirection:"column", gap:4,
+        ...(accent ? { borderLeftColor: accent, borderLeftWidth: 3 } : {}),
+      }}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-white/40 text-xs font-medium tracking-wide uppercase">{label}</span>
-        {icon && <span className="text-xl">{icon}</span>}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
+        <span style={{ color:"var(--text-muted)", fontSize:11, fontWeight:500, letterSpacing:.6, textTransform:"uppercase" }}>{label}</span>
+        {icon && <span style={{ fontSize:20 }}>{icon}</span>}
       </div>
-      <p className="text-3xl font-bold text-white leading-none mt-1">
-        {value ?? <span className="text-white/20 text-xl">—</span>}
+      <p style={{ fontSize:28, fontWeight:700, color:"var(--text-primary)", lineHeight:1, margin:"4px 0 0" }}>
+        {value ?? <span style={{ color:"var(--border)", fontSize:20 }}>—</span>}
       </p>
-      {sub && <p className="text-white/30 text-xs mt-0.5">{sub}</p>}
+      {sub && <p style={{ color:"var(--text-muted)", fontSize:11, margin:"2px 0 0" }}>{sub}</p>}
     </div>
   );
 }

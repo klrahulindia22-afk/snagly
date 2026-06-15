@@ -2,6 +2,13 @@ import axios from 'axios'
 import useAuthStore from '../stores/authStore'
 
 export const API_ORIGIN = 'http://localhost:8000'
+
+/** Prefix relative /uploads/... paths with the backend origin */
+export function mediaUrl(url) {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `${API_ORIGIN}${url}`;
+}
 const BASE_URL = `${API_ORIGIN}/api/v1`
 
 const client = axios.create({
@@ -30,6 +37,11 @@ client.interceptors.response.use(
   async (error) => {
     const original = error.config
     if (error.response?.status !== 401 || original._retry) {
+      return Promise.reject(error)
+    }
+
+    // Auth endpoints legitimately return 401 (wrong creds, etc.) — don't retry
+    if (original.url?.endsWith('/auth/login') || original.url?.endsWith('/auth/signup')) {
       return Promise.reject(error)
     }
 

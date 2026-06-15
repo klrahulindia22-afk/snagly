@@ -9,6 +9,7 @@ import models.plan          # noqa: F401
 import models.system_config # noqa: F401
 import models.login_attempt # noqa: F401
 import models.admin_audit_log # noqa: F401
+import models.user_subscription  # noqa: F401  — admin revenue (pre-Phase 16)
 from routers.auth import router as auth_router, users_router
 from routers.admin import router as admin_router
 from routers.boards import router as boards_router, invite_router
@@ -32,11 +33,25 @@ from routers.templates import router as templates_router
 from routers.fields import board_fields_router, card_fields_router
 from routers.time_entries import router as time_entries_router, time_entry_router
 from routers.export_import import router as export_import_router
+from routers.webhooks import router as webhooks_router
+from routers.subscriptions import router as subscriptions_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Fix 8+10: refuse to start in production with insecure placeholder secrets
+    if settings.APP_ENV == "production":
+        if settings.APP_SECRET_KEY == "change-me-in-production":
+            raise RuntimeError("APP_SECRET_KEY must be changed from the default before running in production")
+        if not settings.ENCRYPTION_KEY:
+            raise RuntimeError("ENCRYPTION_KEY must be set before running in production")
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+
+    if settings.SMTP_USER:
+        print(f"[EMAIL] SMTP configured — host={settings.SMTP_HOST}:{settings.SMTP_PORT} from={settings.EMAIL_FROM}")
+    else:
+        print("[EMAIL] SMTP not configured — emails will be printed to console only")
+
     yield
 
 
@@ -48,7 +63,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL],
+    allow_origins=[settings.FRONTEND_URL, settings.ADMIN_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -90,6 +105,8 @@ app.include_router(card_fields_router)
 app.include_router(time_entries_router)
 app.include_router(time_entry_router)
 app.include_router(export_import_router)
+app.include_router(webhooks_router)
+app.include_router(subscriptions_router)
 
 # Serve uploaded files
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)

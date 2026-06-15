@@ -11,6 +11,21 @@ build/
 # Secrets — NEVER commit these
 backend/.env
 .env
+rzp-key.csv
+*.csv
+
+# Logs
+*.log
+backend/uvicorn_*.log
+backend/backend*.log
+
+# Accidental pip-created files
+=*
+
+# Screenshots / test artifacts
+ss_*.png
+dnd_test.mjs
+start_tunnel.py
 
 # Node
 node_modules/

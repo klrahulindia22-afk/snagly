@@ -20,12 +20,14 @@ class BoardUpdate(BaseModel):
 class BoardOut(BaseModel):
     id: int
     name: str
+    slug: Optional[str] = None
     description: Optional[str] = None
     owner_id: int
     owner_name: Optional[str] = None
     member_limit: int
     bg_color: Optional[str] = None
     is_archived: bool
+    archived_at: Optional[datetime] = None
     created_at: datetime
     my_role: Optional[str] = None
     member_count: int = 0

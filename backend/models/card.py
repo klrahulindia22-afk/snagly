@@ -45,6 +45,7 @@ class Card(Base):
     is_deleted = Column(Boolean, nullable=False, default=False)
     deleted_at = Column(DateTime, nullable=True)
     created_by_id = Column(BIGINT(unsigned=True), ForeignKey("users.id"), nullable=True, index=True)
+    is_complete = Column(Boolean, nullable=False, default=False)
     is_recurring = Column(Boolean, nullable=False, default=False)
     recurrence_pattern = Column(String(20), nullable=True)  # "daily" | "weekly" | "monthly"
     recurrence_end_date = Column(DateTime, nullable=True)
