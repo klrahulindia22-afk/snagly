@@ -1,7 +1,8 @@
 import axios from 'axios'
 import useAuthStore from '../stores/authStore'
 
-export const API_ORIGIN = 'http://localhost:8000'
+// Use the local API during development; provide VITE_API_URL in hosted builds.
+export const API_ORIGIN = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '')
 
 /** Prefix relative /uploads/... paths with the backend origin */
 export function mediaUrl(url) {
